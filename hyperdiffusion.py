@@ -119,12 +119,12 @@ class HyperDiffusion(pl.LightningModule):
             print("Orig weights[0].stats", input_data.min().item(), input_data.max().item(), input_data.mean().item(),
                   input_data.std().item())
 
-
         # Sample a diffusion timestep
         t = torch.randint(0, high=self.diff.num_timesteps, size=(input_data.shape[0],)).long().to(self.device)
 
         # Execute a diffusion forward pass
-        loss_terms = self.diff.training_losses(self.model, input_data * self.cfg.normalization_factor, t, self.mlp_kwargs,
+        loss_terms = self.diff.training_losses(self.model, input_data * self.cfg.normalization_factor, t,
+                                               self.mlp_kwargs,
                                                self.logger,
                                                model_kwargs=None)
         loss_mse = loss_terms["loss"].mean()
@@ -252,7 +252,9 @@ class HyperDiffusion(pl.LightningModule):
         elif split_type == "train" and self.cfg.val.num_samples is not None:
             test_object_names = test_object_names[:self.cfg.val.num_samples]
 
+        # This parameter is for 4D
         total_time = 16 if self.cfg.method == "hyper_3d" else self.cfg.unet_config.params.image_size
+
         ref_pcs = []
         sample_pcs = []
 
@@ -346,6 +348,7 @@ class HyperDiffusion(pl.LightningModule):
         orig_meshes_dir = f"orig_meshes/run_{wandb.run.name}"
         os.makedirs(orig_meshes_dir, exist_ok=True)
 
+        # During validation, only use some of the val and train shapes for speed
         if split_type == "val" and self.cfg.val.num_samples is not None:
             test_object_names = test_object_names[:self.cfg.val.num_samples]
         elif split_type == "train" and self.cfg.val.num_samples is not None:
@@ -375,15 +378,13 @@ class HyperDiffusion(pl.LightningModule):
         # Then process generated shapes
         sample_x_0s = []
         test_batch_size = 100 if self.cfg.method == "hyper_3d" else self.cfg.batch_size
-        condition = self.cfg.transformer_config.params.condition
 
-        if condition == "no":
-            for _ in tqdm(range(number_of_samples_to_generate // test_batch_size)):
-                sample_x_0s.append(self.diff.ddim_sample_loop(self.model, (test_batch_size, *self.image_size[1:])))
+        for _ in tqdm(range(number_of_samples_to_generate // test_batch_size)):
+            sample_x_0s.append(self.diff.ddim_sample_loop(self.model, (test_batch_size, *self.image_size[1:])))
 
-            if number_of_samples_to_generate % test_batch_size != 0:
-                sample_x_0s.append(self.diff.ddim_sample_loop(self.model, (
-                    number_of_samples_to_generate % test_batch_size, *self.image_size[1:])))
+        if number_of_samples_to_generate % test_batch_size != 0:
+            sample_x_0s.append(self.diff.ddim_sample_loop(self.model, (
+                number_of_samples_to_generate % test_batch_size, *self.image_size[1:])))
 
         sample_x_0s = torch.vstack(sample_x_0s)
         torch.save(sample_x_0s, f"{orig_meshes_dir}/prev_sample_x_0s.pth")
@@ -396,7 +397,6 @@ class HyperDiffusion(pl.LightningModule):
             print('sample_dist.shape, sample_x_0s.shape', sample_dist.shape, sample_x_0s.shape)
         torch.save(sample_x_0s, f"{orig_meshes_dir}/sample_x_0s.pth")
         print("Sampled")
-
 
         print("Running marching cubes")
         sample_batch = []

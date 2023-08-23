@@ -1,12 +1,13 @@
 """
+
 Various helper functions for permutation augmentation of neural networks.
+
+Borrowed from https://github.com/wpeebles/G.pt
+
+Although we're not using augmentation in final paper, it's here for reference
 """
 import torch
 from torch import nn
-
-from mlp_models import MLP3D, MLP
-# from siren import modules, sdf_meshing
-
 
 def permute_out(tensors, permutation):
     if isinstance(tensors, torch.Tensor):

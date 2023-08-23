@@ -6,8 +6,6 @@ import os
 import sys
 from pathlib import Path
 from mlp_models import MLP3D
-import numpy as np
-from matplotlib import pyplot as plt
 
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) )
 sys.path.append( os.path.dirname(os.path.dirname(os.path.dirname( os.path.abspath(__file__) ) )))
@@ -22,9 +20,7 @@ class SDFDecoder(torch.nn.Module):
     def __init__(self, model_type, checkpoint_path, mode, cfg):
         super().__init__()
         # Define the model.
-        if model_type == "decoder":
-            self.model = Decoder(z_dim=0, c_dim=0)
-        elif model_type == "mlp_3d":
+        if model_type == "mlp_3d":
             if "mlp_config" in cfg:
                 self.model = MLP3D(**cfg.mlp_config)
             else:

@@ -1,4 +1,4 @@
-name: hyperdiffusion3
+name: hyper-diffusion
 channels:
   - pytorch
   - nvidia
@@ -172,4 +172,3 @@ dependencies:
     - werkzeug==2.2.3
     - yarl==1.9.2
     - zipp==3.15.0
-prefix: /home/erkoc/miniconda3/envs/hyperdiffusion

@@ -12,8 +12,6 @@ import numpy as np
 import torch
 import torch as th
 
-from mlp_models import MLP
-from siren_2d import get_mgrid
 from .nn import mean_flat
 from .losses import normal_kl, discretized_gaussian_log_likelihood
 

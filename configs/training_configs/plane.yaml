@@ -9,19 +9,17 @@ disable_wandb: False
 dataset_dir: ../DiffusionDeneme/data
 dataset: 02691156
 tensorboard_log_dir: .
-augment: false
+augment: False
 augment_amount: 0
 jitter_augment: False
 use_shape_loss: False
 normalization_factor: 1
-use_ae: false
 timesteps: 500
 epochs: 7
-scheduler: true
+scheduler: True
 scheduler_step: 200
 best_model_save_path: null
 mode: train
-curr_weights: 100000
 mlps_folder_train: ../DiffusionDeneme/siren/experiment_scripts/logs/3d_128_plane_multires_4_manifoldplus_slower_no_clipgrad
 model_resume_path: null
 sampling: ddim
@@ -59,21 +57,3 @@ transformer_config:
     split_policy: layer_by_layer
     use_global_residual: false
     condition: 'no'
-unet_config:
-  target: ldm.ldm.modules.diffusionmodules.openaimodel.UNetModel
-  params:
-    dims: 4
-    image_size: 16
-    in_channels: 1
-    out_channels: 1
-    model_channels: 32
-    attention_resolutions:
-      - 8
-      - 4
-      - 2
-    num_res_blocks: 2
-    channel_mult:
-      - 1
-      - 2
-      - 4
-    num_head_channels: 32

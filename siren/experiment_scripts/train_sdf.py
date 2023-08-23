@@ -1,11 +1,7 @@
 '''Reproduces Sec. 4.2 in main paper and Sec. 4 in Supplement.
 '''
 from functools import partial
-from pathlib import Path
-
 import hydra
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import trimesh
 import wandb
@@ -15,14 +11,10 @@ import copy
 # Enable import from parent package
 import sys
 import os
-
-from scipy.spatial.transform import Rotation
-from torch import nn
-
 sys.path.append( os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ) )
 sys.path.append( os.path.dirname(os.path.dirname(os.path.dirname( os.path.abspath(__file__) ) )))
 sys.path.append( os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname( os.path.abspath(__file__) ) ))))
-from main import render_mesh
+from hd_utils import render_mesh
 from mlp_models import MLP3D
 from siren.experiment_scripts.test_sdf import SDFDecoder
 
@@ -32,7 +24,6 @@ import numpy as np
 
 from siren import dataio, utils, training, loss_functions
 from torch.utils.data import DataLoader
-torch.set_num_threads(8)
 
 def get_model(cfg):
     if cfg.model_type == "mlp_3d":
@@ -42,7 +33,7 @@ def get_model(cfg):
     print('Total number of parameters: %d' % nparameters)
 
     return model
-@hydra.main(version_base=None, config_path="../../overfitting_configs", config_name="overfit_config")
+@hydra.main(version_base=None, config_path="../../configs/overfitting_configs", config_name="overfit_config")
 def main(cfg: DictConfig):
     wandb.init(project="hyperdiffusion_overfitting", dir=cfg.wandb_dir, config=dict(cfg), mode="online")
     first_state_dict = None
@@ -72,6 +63,7 @@ def main(cfg: DictConfig):
     train_object_names = np.genfromtxt(os.path.join(cfg.dataset_folder, "train_split.lst"), dtype="str")
     train_object_names = set(train_object_names)
     for i, file in enumerate(files):
+        # We used to have mesh jittering for augmentation but not using it anymore
         for j in range(10 if mesh_jitter and i > 0 else 1):
 
             # Quick workaround to rename from obj to off
@@ -85,19 +77,14 @@ def main(cfg: DictConfig):
             filename = file.split(".")[0]
             filename = f"{filename}_jitter_{j}"
 
-            if cfg.input_type == "audio":
-                audio_dataset = dataio.AudioFile(filename=os.path.join(cfg.dataset_folder, file))
-                coord_dataset = dataio.ImplicitAudioWrapper(audio_dataset)
-                dataloader = DataLoader(coord_dataset, shuffle=True, batch_size=1, pin_memory=True, num_workers=0)
-            else:
-                sdf_dataset = dataio.PointCloud(os.path.join(cfg.dataset_folder, file),
-                                                on_surface_points=cfg.batch_size,
-                                                is_mesh=True,
-                                                output_type=cfg.output_type,
-                                                out_act=cfg.out_act,
-                                                n_points=cfg.n_points,
-                                                cfg=cfg)
-                dataloader = DataLoader(sdf_dataset, shuffle=True, batch_size=1, pin_memory=True, num_workers=0)
+            sdf_dataset = dataio.PointCloud(os.path.join(cfg.dataset_folder, file),
+                                            on_surface_points=cfg.batch_size,
+                                            is_mesh=True,
+                                            output_type=cfg.output_type,
+                                            out_act=cfg.out_act,
+                                            n_points=cfg.n_points,
+                                            cfg=cfg)
+            dataloader = DataLoader(sdf_dataset, shuffle=True, batch_size=1, pin_memory=True, num_workers=0)
             if cfg.strategy == "save_pc":
                 continue
             elif cfg.strategy == "diagnose":
@@ -107,32 +94,13 @@ def main(cfg: DictConfig):
 
             # Define the model.
             model = get_model(cfg).cuda()
-            # obj: trimesh.Trimesh = trimesh.load(os.path.join(cfg.dataset_folder, file))
-            # # obj.show()
-            # from trimesh.voxel import creation as vox_creation
-            # vox_size = 0.0015
-            # vox: trimesh.voxel.VoxelGrid = vox_creation.voxelize(obj, pitch=vox_size)
-            # vox.as_boxes().export(os.path.join(cfg.logging_root, f"{cfg.exp_name}_ply", "vox_input.ply"))
-            # resolution = 512
-            # grid = torch.full(vox.shape, 0).float()
-            # print(vox)
-            # indices = vox.sparse_indices
-            # grid[indices[:, 0], indices[:, 1], indices[:, 2]] = 1
-            #
-            # v, f = mcubes.marching_cubes(mcubes.smooth(grid.numpy()), 0)
-            # mcubes.export_obj(v, f, os.path.join(cfg.logging_root, f"{cfg.exp_name}_ply", "deneme_mesh.obj"))
-            # sdf_meshing.convert_sdf_samples_to_ply(grid, [-1, -1, -1], vox_size * 2, os.path.join(cfg.logging_root, f"{cfg.exp_name}_ply", "vox_deneme.ply"), 0.5)
-            # continue
+
             # Define the loss
             loss_fn = loss_functions.sdf
             if cfg.output_type == "occ":
                 loss_fn = loss_functions.occ_tanh if cfg.out_act == "tanh" else loss_functions.occ_sigmoid
-            if cfg.input_type == "audio":
-                loss_fn = loss_functions.function_mse
             loss_fn = partial(loss_fn, cfg=cfg)
-            if cfg.strategy == "first_weights_kl" and first_state_dict is not None:
-                loss_fn = partial(loss_fn, first_state_dict=first_state_dict)
-            summary_fn = utils.wandb_audio_summary if cfg.input_type == "audio" else utils.wandb_sdf_summary
+            summary_fn = utils.wandb_sdf_summary
 
             filename = f"{cfg.output_type}_{filename}"
             checkpoint_path = os.path.join(root_path, f"{filename}_model_final.pth")
@@ -165,17 +133,13 @@ def main(cfg: DictConfig):
                            clip_grad=cfg.clip_grad, wandb=wandb, filename=filename, cfg=cfg)
             if i == 0 and first_state_dict is None and (cfg.strategy == "first_weights" or cfg.strategy == "first_weights_kl") and not multip_cfg.enabled:
                 first_state_dict = model.state_dict()
-                # if cfg.output_type == "occ" and cfg.strategy == "first_weights":
-                #     curr_lr = curr_lr * 5
                 print(curr_lr)
             state_dict = model.state_dict()
+
+            # Calculate statistics on the MLP
             weights = []
-            # target_shape = Config.get("target_shape")
-            # curr_weights = Config.get("curr_weights")
-            # target = np.prod(target_shape)
             for weight in state_dict:
                 weights.append(state_dict[weight].flatten().cpu())
-            # weights.append(torch.zeros(target - curr_weights))  # TODO: I don't know if zero is the best value
             weights = torch.hstack(weights)
             x_0s.append(weights)
             tmp = torch.stack(x_0s)
@@ -183,6 +147,7 @@ def main(cfg: DictConfig):
             print(var.shape, var.mean().item(), var.std().item(), var.min().item(), var.max().item())
             print(var.shape, torch.var(tmp))
 
+            # For the first 5 data, I'm outputting shapes
             if i < 5:
                 sdf_decoder = SDFDecoder(cfg.model_type, checkpoint_path, "nerf" if cfg.model_type == "nerf" else "mlp", cfg)
                 os.makedirs(os.path.join(cfg.logging_root, f"{cfg.exp_name}_ply"), exist_ok=True)
@@ -203,15 +168,6 @@ def main(cfg: DictConfig):
                     wandb.log({"animation": wandb.Video(imgs, fps=16)})
                 else:
                     sdf_meshing.create_mesh(sdf_decoder, os.path.join(cfg.logging_root, f"{cfg.exp_name}_ply", filename), N=256, level=0 if cfg.output_type == "occ" and cfg.out_act == "sigmoid" else 0)
-                # break
-    # lengths = np.array(lengths)
-    # names = np.array(names)
-    # print(names)
-    # print(np.histogram(lengths, bins=50))
-    # for size in range(100, 10000, 100):
-    #     idx = lengths - 200000 < size
-    #     print(f'Size({size}):', len(lengths[idx]))
-    #     print('Names', names[idx])
-    # print()
+
 if __name__ == "__main__":
     main()

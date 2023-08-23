@@ -17,19 +17,20 @@ import wandb
 import numpy as np
 import torch
 import ldm.ldm.modules.diffusionmodules.openaimodel
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from os.path import join
 import sys
 import pytorch_lightning as pl
 
 sys.path.append("siren")
-from siren.dataio import anime_read
 
-@hydra.main(version_base=None, config_path="training_configs", config_name="plane")
+@hydra.main(version_base=None, config_path="configs/training_configs", config_name="plane")
 def main(cfg: DictConfig):
     Config.config = config = cfg
     method = Config.get("method")
     mlp_kwargs = None
+
+    # In HyperDiffusion, we need to know the specifications of MLPs that are used for overfitting
     if "hyper" in method:
         mlp_kwargs = Config.config["mlp_config"]["params"]
 
@@ -44,9 +45,10 @@ def main(cfg: DictConfig):
 
     train_dt = val_dt = test_dt = None
 
-    mode = Config.get("mode")
+    # Although it says train, it includes all the shapes but we only extract training ones in WeightDataset
     mlps_folder_train = Config.get("mlps_folder_train")
 
+    # Initialize Transformer for HyperDiffusion
     if "hyper" in method:
         mlp = get_mlp(mlp_kwargs)
         state_dict = mlp.state_dict()
@@ -57,6 +59,7 @@ def main(cfg: DictConfig):
             layers.append(np.prod(shape))
             layer_names.append(l)
         model = Transformer(layers, layer_names, **Config.config["transformer_config"]["params"]).cuda()
+    # Initialize UNet for Voxel baseline
     else:
         model = ldm.ldm.modules.diffusionmodules.openaimodel.UNetModel(**Config.config["unet_config"]["params"]).float()
 
@@ -122,10 +125,10 @@ def main(cfg: DictConfig):
     best_model_save_path = Config.get("best_model_save_path")
     model_resume_path = Config.get("model_resume_path")
 
-    # Initialize hyperdiffusion
+    # Initialize HyperDiffusion
     diffuser = HyperDiffusion(model, train_dt, val_dt, test_dt, mlp_kwargs, input_data.shape, method, cfg)
 
-    # Specif where to save checkpoints
+    # Specify where to save checkpoints
     checkpoint_path = join(config["tensorboard_log_dir"], "lightning_checkpoints",
                            f"{str(datetime.now()).replace(':', '-') + '-' + wandb.run.name + '-' + wandb.run.id}")
     best_acc_checkpoint = ModelCheckpoint(
@@ -164,9 +167,9 @@ def main(cfg: DictConfig):
         # If model_resume_path is provided (i.e., not None), the training will continue from that checkpoint
         trainer.fit(diffuser, train_dl, val_dl, ckpt_path=model_resume_path)
 
+    # best_model_save_path is the path to saved best model
     trainer.test(diffuser, test_dl, ckpt_path=best_model_save_path if Config.get("mode") == "test" else None)
     wandb_logger.finalize("Success")
-
 
 if __name__ == "__main__":
     main()
