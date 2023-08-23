@@ -1,0 +1,79 @@
+method: hyper_3d
+move_sampling: other
+dedup: False
+test_sample_mult: 1.1
+filter_bad: True
+filter_bad_path: ""
+vox_resolution: 24
+disable_wandb: False
+dataset_dir: ../DiffusionDeneme/data
+dataset: 02691156
+tensorboard_log_dir: .
+augment: false
+augment_amount: 0
+jitter_augment: False
+use_shape_loss: False
+normalization_factor: 1
+use_ae: false
+timesteps: 500
+epochs: 7
+scheduler: true
+scheduler_step: 200
+best_model_save_path: null
+mode: train
+curr_weights: 100000
+mlps_folder_train: ../DiffusionDeneme/siren/experiment_scripts/logs/3d_128_plane_multires_4_manifoldplus_slower_no_clipgrad
+model_resume_path: null
+sampling: ddim
+skip: 50
+val_fid_calculation_period: 5
+lr: 0.0002
+batch_size: 32
+accumulate_grad_batches: 1
+val:
+  num_points: 2048
+  num_samples: 60
+mlp_config:
+  params:
+    model_type: mlp_3d
+    out_size: 1
+    hidden_neurons:
+      - 128
+      - 128
+      - 128
+    output_type: occ
+    out_act: sigmoid
+    multires: 4
+    use_leaky_relu: false
+    move: false
+diff_config:
+  params:
+    model_mean_type: START_X
+    model_var_type: FIXED_LARGE
+    loss_type: MSE
+transformer_config:
+  params:
+    n_embd: 1600
+    n_layer: 12
+    n_head: 16
+    split_policy: layer_by_layer
+    use_global_residual: false
+    condition: 'no'
+unet_config:
+  target: ldm.ldm.modules.diffusionmodules.openaimodel.UNetModel
+  params:
+    dims: 4
+    image_size: 16
+    in_channels: 1
+    out_channels: 1
+    model_channels: 32
+    attention_resolutions:
+      - 8
+      - 4
+      - 2
+    num_res_blocks: 2
+    channel_mult:
+      - 1
+      - 2
+      - 4
+    num_head_channels: 32

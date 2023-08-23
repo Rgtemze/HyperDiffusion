@@ -1,0 +1,87 @@
+method: hyper_3d
+move_sampling: other
+filter_bad: true
+filter_bad_path: problematics_dashing-disco-5811.txt
+vox_resolution: 24
+disable_wandb: false
+dataset_dir: /cluster/sorona/zerkoc
+dataset: '03001627'
+tensorboard_log_dir: /cluster/angmar/zerkoc
+augment: false
+augment_amount: 0
+jitter_augment: false
+use_shape_loss: false
+normalization_factor: 1
+use_ae: false
+timesteps: 500
+epochs: 6000
+ema: false
+scheduler: true
+scheduler_step: 200
+scheduler_min_lr: 0.00001
+best_model_save_path: null
+mode: train
+curr_weights: 100000
+mlps_folder_train: ./logs/3d_128_chair_multires_4_manifoldplus_slower_no_clipgrad
+mlp_num_epochs: 10000
+mlp_lr: 0.01
+mlp_mode: average
+mlp_weight_dc: null
+model_resume_path: null
+sampling: ddim
+skip: 50
+val_fid_calculation_period: 15
+lr: 0.0002
+batch_size: 32
+accumulate_grad_batches: 1
+classes:
+  - 8
+val:
+  num_points: 2048
+  num_samples: 60
+ae_config: null
+mlp_config:
+  params:
+    model_type: mlp_3d
+    out_size: 1
+    hidden_neurons:
+      - 128
+      - 128
+      - 128
+    output_type: occ
+    out_act: sigmoid
+    multires: 4
+    use_leaky_relu: false
+    move: false
+diff_config:
+  params:
+    model_mean_type: START_X
+    model_var_type: FIXED_LARGE
+    loss_type: MSE
+transformer_config:
+  params:
+    n_embd: 2880
+    n_layer: 12
+    n_head: 16
+    split_policy: layer_by_layer
+    use_global_residual: false
+    condition: 'no'
+unet_config:
+  target: ldm.ldm.modules.diffusionmodules.openaimodel.UNetModel
+  params:
+    dims: 3
+    image_size: 1
+    in_channels: 1
+    out_channels: 1
+    model_channels: 32
+    attention_resolutions:
+      - 8
+      - 4
+      - 2
+    num_res_blocks: 2
+    channel_mult:
+      - 1
+      - 2
+      - 4
+    num_head_channels: 32
+

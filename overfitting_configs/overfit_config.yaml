@@ -1,0 +1,45 @@
+input_type: "mesh"
+output_type: "occ" # or sdf or occ
+in_out: True
+augment_on_the_fly: False
+mesh_jitter: False
+dataset_folder: "../../../DiffusionDeneme/data/02691156"
+wandb_dir: /cluster/sorona/zerkoc
+batch_size: 2048
+lr: 1e-2
+model_type: mlp_3d
+bayesian: False
+logging_root: './logs'
+shape_modify: 'no'
+exp_name: "deneme5"
+steps_til_summary: 100
+epochs_til_ckpt: 1
+hidden_features: 128
+kl_weight: 0
+epochs: 5000
+scheduler:
+  type: adaptive
+  step_size: 30
+  gamma: 0.1
+  min_lr: 1e-6 #1e-5
+  patience: 50
+  patience_adaptive: 20 #10
+  factor: 0.8
+  threshold: 0
+multi_process:
+  enabled: False
+  part_id: 0
+  n_of_parts: 4
+  first_weights_name: occ_a14b262838529c2c81e1d9f6b27f1a92_jitter_0_model_final.pth #occ_96885d760de5c5e174335c2737ecf4d_jitter_0_model_final.pth #occ_f934155d32f9ed5b4101e38beb790a92_jitter_0_model_final.pth #occ_a14b262838529c2c81e1d9f6b27f1a92_jitter_0_model_final.pth #occ_foxXAT_Rotate180R_jitter_0_model_final.pth #occ_e7b41a39388925c364f6d058992c3399_jitter_0_model_final.pth
+  ignore_first: False
+n_points: 100000
+is_meta: True
+strategy: first_weights
+clip_grad: False
+out_act: sigmoid
+mlp_config:
+  out_size: 1
+  use_leaky_relu: False
+  hidden_neurons: [128, 128, 128]
+  multires: 4
+  move: False
