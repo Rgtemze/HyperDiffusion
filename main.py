@@ -24,7 +24,8 @@ import pytorch_lightning as pl
 
 sys.path.append("siren")
 
-@hydra.main(version_base=None, config_path="configs/training_configs", config_name="plane")
+
+@hydra.main(version_base=None, config_path="configs/diffusion_configs", config_name="train_plane")
 def main(cfg: DictConfig):
     Config.config = config = cfg
     method = Config.get("method")
@@ -170,6 +171,7 @@ def main(cfg: DictConfig):
     # best_model_save_path is the path to saved best model
     trainer.test(diffuser, test_dl, ckpt_path=best_model_save_path if Config.get("mode") == "test" else None)
     wandb_logger.finalize("Success")
+
 
 if __name__ == "__main__":
     main()

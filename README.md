@@ -1,7 +1,8 @@
 # HyperDiffusion
 Official code repository of "HyperDiffusion: Generating Implicit Neural Fields with Weight-Space Diffusion" @ ICCV 2023
 
-[Paper](https://arxiv.org/abs/2303.17015) | [Project website](https://www.ziyaerkoc.com/hyperdiffusion)
+[Paper](https://arxiv.org/abs/2303.17015) | [Project website](https://www.ziyaerkoc.com/hyperdiffusion) | [Data](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing)
+
 
 ## Method Overview
 
@@ -20,6 +21,7 @@ Official code repository of "HyperDiffusion: Generating Implicit Neural Fields w
 - **lightning_checkpoints**: This will be created once you start training for the first time. It will include checkpoints of the diffusion model, the sub-folder names will be the unique name assigned by the Weights & Biases in addition to timestamp.
 - **outputs**: Hydra creates this folder to store the configs but we mainly send our outputs to Weights & Biases, so, it's not that special
 - **orig_meshes**: Here we put generated weights as .pth and sometimes generated meshes.
+- **wandb**: Weights & Biases will create this folder to store outputs before sending them to server.
 ### Files
 - **augment.py**: Including some augmentation methods, though we don't use them in the main paper
 - **dataset.py**: `WeightDataset` and `VoxelDataset` definitions which are `torch.Dataset` descendents. Former one is related to our HyperDiffusion method, while the latter one is for Voxel baseline
@@ -33,7 +35,12 @@ Official code repository of "HyperDiffusion: Generating Implicit Neural Fields w
 - **torchmetrics_fid.py**: Modified torchmetrics fid implementation to calculate 3D-FID
 - **transformer.py**: GPT definition from [G.pt paper](https://github.com/wpeebles/G.pt)
 
-
+## Data
+All the data needed to train and evaluate HyperDiffusion is in [this Drive folder](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing)
+There are three main folders there:
+- **Checkpoints** contains trained diffusion model for each category, you'll need them for [evaluation](#evaluation)
+- **MLP Weights** involves already overfitted MLP weights.
+- **Point Clouds (2048)** has the set of 2048 points sampled from meshes to be used for metric calculation and baseline training.  
 
 ## Get Started
 
@@ -43,24 +50,47 @@ We have environment file that you can create a conda environment from. Simply ru
 conda env create --file hyperdiffusion_env.yaml
 conda activate hyper-diffusion
 ```
+
+_We specify our runtime parameters using .yaml files which are inside configs folder. There are different yaml file for each category and task._
+
+Then, download **MLP Weights** from [our Drive](#data) and put it somewhere you like. Put the path into `mlps_folder_train` parameter in the corresponding yaml file.
+
+Download **Point Clouds (2048)** folder from [Drive](#data) and save its content to **data** folder.
+
+### Training
 To start training, airplane category:
 ```commandline
-python main.py --config-name=plane
+python main.py --config-name=train_plane
 ```
 car category:
 ```commandline
-python main.py --config-name=car
+python main.py --config-name=train_car
 ```
 chair category:
 ```commandline
-python main.py --config-name=chair
+python main.py --config-name=train_chair
 ```
 
 We are using [hydra](https://hydra.cc/), you can either specify them from corresponding yaml file or directly modify
 the parameters from terminal. For instance, to change the number of epochs:
 
 ```commandline
-python main.py --config-name=plane epochs=1
+python main.py --config-name=train_plane epochs=1
+```
+### Evaluation
+Download **Checkpoints** folder from [Drive](#data). Assign the path of that checkpoint to the `best_model_save_path` parameter.
+
+to start evaluating, airplane category:
+```commandline
+python main.py --config-name=train_plane mode=test best_model_save_path=<path/to/checkpoint>
+```
+car category:
+```commandline
+python main.py --config-name=train_car mode=test best_model_save_path=<path/to/checkpoint>
+```
+chair category (we have special operations for chair, see our Supplementary Material in Arxiv for details):
+```commandline
+python main.py --config-name=train_chair mode=test best_model_save_path=<path/to/checkpoint> test_sample_mult=2 dedup=True
 ```
 
 ## Training Plots
@@ -76,4 +106,21 @@ We share training plots for better reproducibility. Links take you to Weights & 
 * CUDA 11.7
 * Weights & Biases (We heavily rely on it for visualization and monitoring)
 
-For full list please see [hyperdiffusion_env.yml file](/hyperdiffusion_env.yml)
+For full list please see [hyperdiffusion_env.yaml file](/hyperdiffusion_env.yaml)
+
+## Acknowledgment
+
+We mainly used codebases of [SIREN](https://github.com/vsitzmann/siren), [G.pt](https://github.com/wpeebles/G.pt) papers to build our repository. We also referred to [DPC](https://github.com/luost26/diffusion-point-cloud) for codes like evaluation metrics. We used [OpenAI Guided Diffusion](https://github.com/openai/guided-diffusion) as our diffusion backbone. [LDM](https://github.com/CompVis/latent-diffusion) codebase was useful for us to implement our voxel baseline.
+
+## Citation
+
+```
+@misc{erkoç2023hyperdiffusion,
+  title={HyperDiffusion: Generating Implicit Neural Fields with Weight-Space Diffusion}, 
+  author={Ziya Erkoç and Fangchang Ma and Qi Shan and Matthias Nießner and Angela Dai},
+  year={2023},
+  eprint={2303.17015},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV}
+}
+```

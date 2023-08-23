@@ -1,10 +1,10 @@
 method: hyper_3d
 move_sampling: other
+calculate_metric_on_test: True
 dedup: False
 test_sample_mult: 1.1
 filter_bad: True
 filter_bad_path: ""
-vox_resolution: 24
 disable_wandb: False
 dataset_dir: ../DiffusionDeneme/data
 dataset: 02691156
@@ -12,7 +12,6 @@ tensorboard_log_dir: .
 augment: False
 augment_amount: 0
 jitter_augment: False
-use_shape_loss: False
 normalization_factor: 1
 timesteps: 500
 epochs: 7
@@ -23,14 +22,13 @@ mode: train
 mlps_folder_train: ../DiffusionDeneme/siren/experiment_scripts/logs/3d_128_plane_multires_4_manifoldplus_slower_no_clipgrad
 model_resume_path: null
 sampling: ddim
-skip: 50
-val_fid_calculation_period: 5
+val_fid_calculation_period: 1
 lr: 0.0002
 batch_size: 32
 accumulate_grad_batches: 1
 val:
   num_points: 2048
-  num_samples: 60
+  num_samples: 10
 mlp_config:
   params:
     model_type: mlp_3d

@@ -9,21 +9,13 @@ import torch
 import numpy as np
 import warnings
 
-import trimesh
-import wandb
-from scipy.spatial.transform import Rotation
 from scipy.stats import entropy
 from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 from tqdm.auto import tqdm
 import wandb
 from scipy.spatial.transform import Rotation
-import os
 import trimesh
-# from PyTorchEMD.emd import earth_mover_distance as EMD
-
-# from emd_metric.emd_module import emdModule
-import sys
 
 _EMD_NOT_IMPL_WARNED = False
 
@@ -31,9 +23,6 @@ _EMD_NOT_IMPL_WARNED = False
 def emd_approx(sample, ref):
     global _EMD_NOT_IMPL_WARNED
     emd_val = torch.zeros([sample.size(0)]).to(sample)
-    # emd_func = emdModule()
-    # dis, assigment = emd_func((sample + 0.95) / 1.9, (ref + 0.95) / 1.9, 0.002, 10000)  # 0.005, 50 for training
-    # emd_val = np.sqrt(dis.cpu()).mean()
 
     if not _EMD_NOT_IMPL_WARNED:
         _EMD_NOT_IMPL_WARNED = True
@@ -221,12 +210,16 @@ def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
 
     ## EMD
     res_emd = lgan_mmd_cov(M_rs_emd.t())
-    results.update({
-        "%s-EMD" % k: v for k, v in res_emd.items()
-    })
+    # results.update({
+    #     "%s-EMD" % k: v for k, v in res_emd.items()
+    # })
 
     ## CD
     res_cd = lgan_mmd_cov(M_rs_cd.t())
+
+
+    # We use the below code to visualize some goodly&badly performing shapes
+    # you can uncomment if you want to analyze that
 
     # r = Rotation.from_euler('x', 90, degrees=True)
     # min_dist, min_dist_sample_idx = torch.min(M_rs_cd.t(), dim=0)
@@ -281,9 +274,9 @@ def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
 
     ## EMD
     one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
-    results.update({
-        "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
-    })
+    # results.update({
+    #     "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
+    # })
 
     return results
 
@@ -295,45 +288,48 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size, logger):
 
     ## EMD
     res_emd = lgan_mmd_cov(M_rs_emd.t())
-    results.update({
-        "%s-EMD" % k: v for k, v in res_emd.items()
-    })
+    # results.update({
+    #     "%s-EMD" % k: v for k, v in res_emd.items()
+    # })
 
     ## CD
     res_cd = lgan_mmd_cov(M_rs_cd.t())
 
-    if len(sample_pcs) > 60:
-        r = Rotation.from_euler('x', 90, degrees=True)
-        min_dist, min_dist_sample_idx = torch.min(M_rs_cd.t(), dim=0)
-        min_dist_sorted_idx = torch.argsort(min_dist)
-        orig_meshes_dir = f"orig_meshes/run_{wandb.run.name}"
+    # We use the below code to visualize some goodly&badly performing shapes
+    # you can uncomment if you want to analyze that
 
-        for i, ref_id in enumerate(min_dist_sorted_idx):
-            ref_id = ref_id.item()
-            matched_sample_id = min_dist_sample_idx[ref_id].item()
-            mlp_pc = trimesh.points.PointCloud(sample_pcs[matched_sample_id].cpu())
-            mlp_pc.export(f"{orig_meshes_dir}/mlp_top{i}.obj")
-            mlp_pc = trimesh.points.PointCloud(ref_pcs[ref_id].cpu())
-            mlp_pc.export(f"{orig_meshes_dir}/mlp_top{i}ref.obj")
-
-        for i, ref_id in enumerate(min_dist_sorted_idx[:4]):
-            ref_id = ref_id.item()
-            matched_sample_id = min_dist_sample_idx[ref_id].item()
-            logger.experiment.log({f'pc/top_{i}': [
-                wandb.Object3D(r.apply(sample_pcs[matched_sample_id].cpu())),
-                wandb.Object3D(r.apply(ref_pcs[ref_id].cpu()))]})
-        for i, ref_id in enumerate(reversed(min_dist_sorted_idx[-4:])):
-            ref_id = ref_id.item()
-            matched_sample_id = min_dist_sample_idx[ref_id].item()
-            logger.experiment.log({f'pc/bottom_{i}': [
-                wandb.Object3D(r.apply(sample_pcs[matched_sample_id].cpu())),
-                wandb.Object3D(r.apply(ref_pcs[ref_id].cpu()))]})
-        print(min_dist, min_dist_sample_idx, min_dist_sorted_idx)
-        torch.save(min_dist, f"{orig_meshes_dir}/min_dist.pth")
-        torch.save(min_dist_sample_idx, f"{orig_meshes_dir}/min_dist_sample_idx.pth")
-        torch.save(min_dist_sorted_idx, f"{orig_meshes_dir}/min_dist_sorted_idx.pth")
-        torch.save(min_dist[min_dist_sorted_idx], f"{orig_meshes_dir}/min_dist_sorted.pth")
-        print("Sorted:", min_dist[min_dist_sorted_idx])
+    # if len(sample_pcs) > 60:
+    #     r = Rotation.from_euler('x', 90, degrees=True)
+    #     min_dist, min_dist_sample_idx = torch.min(M_rs_cd.t(), dim=0)
+    #     min_dist_sorted_idx = torch.argsort(min_dist)
+    #     orig_meshes_dir = f"orig_meshes/run_{wandb.run.name}"
+    #
+    #     for i, ref_id in enumerate(min_dist_sorted_idx):
+    #         ref_id = ref_id.item()
+    #         matched_sample_id = min_dist_sample_idx[ref_id].item()
+    #         mlp_pc = trimesh.points.PointCloud(sample_pcs[matched_sample_id].cpu())
+    #         mlp_pc.export(f"{orig_meshes_dir}/mlp_top{i}.obj")
+    #         mlp_pc = trimesh.points.PointCloud(ref_pcs[ref_id].cpu())
+    #         mlp_pc.export(f"{orig_meshes_dir}/mlp_top{i}ref.obj")
+    #
+    #     for i, ref_id in enumerate(min_dist_sorted_idx[:4]):
+    #         ref_id = ref_id.item()
+    #         matched_sample_id = min_dist_sample_idx[ref_id].item()
+    #         logger.experiment.log({f'pc/top_{i}': [
+    #             wandb.Object3D(r.apply(sample_pcs[matched_sample_id].cpu())),
+    #             wandb.Object3D(r.apply(ref_pcs[ref_id].cpu()))]})
+    #     for i, ref_id in enumerate(reversed(min_dist_sorted_idx[-4:])):
+    #         ref_id = ref_id.item()
+    #         matched_sample_id = min_dist_sample_idx[ref_id].item()
+    #         logger.experiment.log({f'pc/bottom_{i}': [
+    #             wandb.Object3D(r.apply(sample_pcs[matched_sample_id].cpu())),
+    #             wandb.Object3D(r.apply(ref_pcs[ref_id].cpu()))]})
+    #     print(min_dist, min_dist_sample_idx, min_dist_sorted_idx)
+    #     torch.save(min_dist, f"{orig_meshes_dir}/min_dist.pth")
+    #     torch.save(min_dist_sample_idx, f"{orig_meshes_dir}/min_dist_sample_idx.pth")
+    #     torch.save(min_dist_sorted_idx, f"{orig_meshes_dir}/min_dist_sorted_idx.pth")
+    #     torch.save(min_dist[min_dist_sorted_idx], f"{orig_meshes_dir}/min_dist_sorted.pth")
+    #     print("Sorted:", min_dist[min_dist_sorted_idx])
 
 
     results.update({
@@ -352,11 +348,11 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size, logger):
         "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if 'acc' in k
     })
 
-        ## EMD
+    ## EMD
     one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
-    results.update({
-        "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
-    })
+    # results.update({
+    #     "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
+    # })
 
     return results
 
