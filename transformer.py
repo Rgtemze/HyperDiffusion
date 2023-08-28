@@ -2,13 +2,13 @@
 This file contains the G.pt model and its building blocks (minGPT without masking, etc.).
 """
 import math
+from copy import deepcopy
 
 import numpy as np
 import torch
 import torch.nn as nn
-
-from copy import deepcopy
 from torch.nn import functional as F
+
 from embedder import Embedder
 from mlp_models import MLP
 
@@ -39,16 +39,24 @@ class SelfAttention(nn.Module):
         B, T, C = x.size()
 
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
-        k = self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
-        q = self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
-        v = self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)  # (B, nh, T, hs)
+        k = (
+            self.key(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        )  # (B, nh, T, hs)
+        q = (
+            self.query(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        )  # (B, nh, T, hs)
+        v = (
+            self.value(x).view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        )  # (B, nh, T, hs)
 
         # self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         att = F.softmax(att, dim=-1)
         att = self.attn_drop(att)
         y = att @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C)  # re-assemble all head outputs side by side
+        y = (
+            y.transpose(1, 2).contiguous().view(B, T, C)
+        )  # re-assemble all head outputs side by side
 
         # output projection
         y = self.resid_drop(self.proj(y))
@@ -56,7 +64,7 @@ class SelfAttention(nn.Module):
 
 
 class Block(nn.Module):
-    """ an unassuming Transformer block """
+    """an unassuming Transformer block"""
 
     def __init__(self, n_embd, n_head, attn_pdrop=0.0, resid_pdrop=0.0):
         super().__init__()
@@ -83,23 +91,38 @@ class GPT(nn.Module):
     """
 
     def __init__(
-        self, input_parameter_sizes, output_parameter_sizes, input_parameter_names,
-        n_layer=12, n_head=12, n_embd=768, encoder_depth=1, decoder_depth=1, attn_pdrop=0.0,
-        resid_pdrop=0.0, embd_pdrop=0.0, chunk_size=None, split_policy='chunk'
+        self,
+        input_parameter_sizes,
+        output_parameter_sizes,
+        input_parameter_names,
+        n_layer=12,
+        n_head=12,
+        n_embd=768,
+        encoder_depth=1,
+        decoder_depth=1,
+        attn_pdrop=0.0,
+        resid_pdrop=0.0,
+        embd_pdrop=0.0,
+        chunk_size=None,
+        split_policy="chunk",
     ):
         # parameter_sizes is a list of integers indicating how many parameters are in each layer
         super().__init__()
 
         # Determine how many parameters are placed into each individual Transformer token:
-        self.input_splits = self.build_splits(input_parameter_sizes, split_policy, chunk_size)
-        self.output_splits = self.build_splits(output_parameter_sizes, split_policy, chunk_size)
-        print(f'Using following input parameter splits: {self.input_splits}')
+        self.input_splits = self.build_splits(
+            input_parameter_sizes, split_policy, chunk_size
+        )
+        self.output_splits = self.build_splits(
+            output_parameter_sizes, split_policy, chunk_size
+        )
+        print(f"Using following input parameter splits: {self.input_splits}")
         block_size = len(self.input_splits)
         print(input_parameter_names)
-        if split_policy == 'layer_by_layer':
+        if split_policy == "layer_by_layer":
             assert len(input_parameter_names) == block_size
         else:
-            input_parameter_names = ['null'] * block_size
+            input_parameter_names = ["null"] * block_size
 
         # input embedding stem
         self.pos_emb = nn.Parameter(torch.zeros(1, block_size, n_embd))
@@ -112,12 +135,16 @@ class GPT(nn.Module):
         self.block_size = block_size
 
         # Per-token encoder layers:
-        self.input_parameter_projections = self.build_encoder(n_embd, encoder_depth, self.input_splits)
+        self.input_parameter_projections = self.build_encoder(
+            n_embd, encoder_depth, self.input_splits
+        )
         self.ln_in = nn.LayerNorm(n_embd)
 
         # Per-token decoder layers:
         self.ln_f = nn.LayerNorm(n_embd)
-        self.output_parameter_projections = self.build_decoder(n_embd, decoder_depth, self.output_splits)
+        self.output_parameter_projections = self.build_decoder(
+            n_embd, decoder_depth, self.output_splits
+        )
 
         self.num_output_heads = len(self.output_splits)
         self.apply(self._init_weights)
@@ -178,22 +205,28 @@ class GPT(nn.Module):
         no_decay = set()
         whitelist_weight_modules = (torch.nn.Linear, torch.nn.Conv1d)
         blacklist_weight_modules = (
-            torch.nn.LayerNorm, torch.nn.Embedding, FrequencyEmbedder
+            torch.nn.LayerNorm,
+            torch.nn.Embedding,
+            FrequencyEmbedder,
         )
         for mn, m in nn_module.named_modules():
             for pn, p in m.named_parameters():
-                fpn = '%s.%s' % (mn, pn) if mn else pn  # full param name
+                fpn = "%s.%s" % (mn, pn) if mn else pn  # full param name
 
-                if pn.endswith('bias'):
+                if pn.endswith("bias"):
                     # all biases will not be decayed
                     no_decay.add(fpn)
-                elif pn.endswith('weight') and isinstance(m, whitelist_weight_modules):
+                elif pn.endswith("weight") and isinstance(m, whitelist_weight_modules):
                     # weights of whitelist modules will be weight decayed
                     decay.add(fpn)
-                elif pn.endswith('weight') and isinstance(m, blacklist_weight_modules):
+                elif pn.endswith("weight") and isinstance(m, blacklist_weight_modules):
                     # weights of blacklist modules will NOT be weight decayed
                     no_decay.add(fpn)
-                elif pn.endswith('pos_emb') or pn.endswith('cfg_loss_embedding') or pn.endswith("hypernet_z_tokens"):
+                elif (
+                    pn.endswith("pos_emb")
+                    or pn.endswith("cfg_loss_embedding")
+                    or pn.endswith("hypernet_z_tokens")
+                ):
                     # special case the position embedding parameter
                     # in the root GPT module as not decayed
                     no_decay.add(fpn)
@@ -202,16 +235,25 @@ class GPT(nn.Module):
         param_dict = {pn: p for pn, p in nn_module.named_parameters()}
         inter_params = decay & no_decay
         union_params = decay | no_decay
-        assert len(inter_params) == 0, \
-            "parameters %s made it into both decay/no_decay sets!" % (str(inter_params), )
-        assert len(param_dict.keys() - union_params) == 0, \
-            "parameters %s were not separated into either decay/no_decay set!" \
-                % (str(param_dict.keys() - union_params), )
+        assert (
+            len(inter_params) == 0
+        ), "parameters %s made it into both decay/no_decay sets!" % (str(inter_params),)
+        assert (
+            len(param_dict.keys() - union_params) == 0
+        ), "parameters %s were not separated into either decay/no_decay set!" % (
+            str(param_dict.keys() - union_params),
+        )
 
         # create the pytorch optimizer object
         optim_groups = [
-            {"params": [param_dict[pn] for pn in sorted(list(decay))], "weight_decay": wd},
-            {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0},
+            {
+                "params": [param_dict[pn] for pn in sorted(list(decay))],
+                "weight_decay": wd,
+            },
+            {
+                "params": [param_dict[pn] for pn in sorted(list(no_decay))],
+                "weight_decay": 0.0,
+            },
         ]
         optimizer = torch.optim.AdamW(optim_groups, lr=lr, betas=betas)
         return optimizer
@@ -224,7 +266,9 @@ class GPT(nn.Module):
         assert parameters.dim() == 2
         split_parameters = torch.split(parameters, self.input_splits, dim=1)
         representations = []
-        for parameter, in_proj in zip(split_parameters, self.input_parameter_projections):
+        for parameter, in_proj in zip(
+            split_parameters, self.input_parameter_projections
+        ):
             representations.append(in_proj(parameter))
         representations = torch.stack(representations, dim=1)  # (b, t, d)
         representations = self.ln_in(representations)
@@ -253,7 +297,7 @@ class GPT(nn.Module):
         return [p for group in parameter_sizes for p in group]
 
     @staticmethod
-    def build_splits(parameter_sizes, split_policy='chunk', chunk_size=None):
+    def build_splits(parameter_sizes, split_policy="chunk", chunk_size=None):
         """
         Determines how to split the input parameter vector into individual tokens.
 
@@ -266,7 +310,7 @@ class GPT(nn.Module):
         'chunk_within_input': each input's elements are subdivided into MANY tokens,
                               no mixing across inputs
         """
-        if split_policy == 'chunk':
+        if split_policy == "chunk":
             # Chunk the parameter vector, not caring if one chunk contains parameters
             # from different layers:
             assert chunk_size is not None
@@ -277,11 +321,11 @@ class GPT(nn.Module):
             remainder = total_n_params % chunk_size
             if remainder > 0:
                 splits.append(remainder)
-        elif split_policy == 'layer_by_layer':
+        elif split_policy == "layer_by_layer":
             # Each layer's parameters belong to its own chunk:
             parameter_sizes = GPT.flatten_parameter_sizes(parameter_sizes)
             splits = parameter_sizes
-        elif split_policy == 'chunk_within_layer':
+        elif split_policy == "chunk_within_layer":
             # Chunk the parameter vector, ensuring that each chunk contains parameters
             # from a single layer only:
             assert chunk_size is not None
@@ -293,11 +337,11 @@ class GPT(nn.Module):
                 remainder = param_size % chunk_size
                 if remainder > 0:
                     splits.append(remainder)
-        elif split_policy == 'chunk_within_input':
+        elif split_policy == "chunk_within_input":
             splits = []
             for parameter_group in parameter_sizes:
                 assert isinstance(parameter_group, (list, tuple))
-                splits.extend(GPT.build_splits(parameter_group, 'chunk', chunk_size))
+                splits.extend(GPT.build_splits(parameter_group, "chunk", chunk_size))
             return splits
         else:
             raise NotImplementedError
@@ -306,10 +350,14 @@ class GPT(nn.Module):
     def forward(self, x):
         embeddings = self.encode_parameters(x)
         b, t, d = embeddings.size()
-        assert t == self.block_size, f"Expected {self.block_size} tokens on dim=1, but got {t}"
+        assert (
+            t == self.block_size
+        ), f"Expected {self.block_size} tokens on dim=1, but got {t}"
 
         # forward the GPT model
-        position_embeddings = self.pos_emb[:, :t, :]  # each position maps to a (learnable) vector
+        position_embeddings = self.pos_emb[
+            :, :t, :
+        ]  # each position maps to a (learnable) vector
         x = self.drop(embeddings + position_embeddings)
         x = self.blocks(x)
         x = self.ln_f(x)
@@ -319,22 +367,25 @@ class GPT(nn.Module):
 
 
 class FrequencyEmbedder(nn.Module):
-
     def __init__(self, num_frequencies, max_freq_log2):
         super().__init__()
         frequencies = 2 ** torch.linspace(0, max_freq_log2, steps=num_frequencies)
-        self.register_buffer('frequencies', frequencies)
+        self.register_buffer("frequencies", frequencies)
 
     def forward(self, x):
         # x should be of size (N,) or (N, D)
         N = x.size(0)
         if x.dim() == 1:  # (N,)
             x = x.unsqueeze(1)  # (N, D) where D=1
-        x_unsqueezed = x.unsqueeze(-1).to('cuda', torch.float)  # (N, D, 1)
-        scaled = self.frequencies.view(1, 1, -1) * x_unsqueezed  # (N, D, num_frequencies)
+        x_unsqueezed = x.unsqueeze(-1).to("cuda", torch.float)  # (N, D, 1)
+        scaled = (
+            self.frequencies.view(1, 1, -1) * x_unsqueezed
+        )  # (N, D, num_frequencies)
         s = torch.sin(scaled)
         c = torch.cos(scaled)
-        embedded = torch.cat([s, c, x_unsqueezed], dim=-1).view(N, -1)  # (N, D * 2 * num_frequencies + D)
+        embedded = torch.cat([s, c, x_unsqueezed], dim=-1).view(
+            N, -1
+        )  # (N, D * 2 * num_frequencies + D)
         return embedded
 
 
@@ -346,29 +397,37 @@ class Transformer(nn.Module):
 
     def __init__(
         self,
-        parameter_sizes,                    # A list of integers indicating the total number of parameters in each layer
-        parameter_names,                    # A list of strings indicating the name of each layer in the input networks
-        num_frequencies=128,                # number of frequencies sampled for embedding scalars
-        max_freq_log2=20,                   # max log2 frequency for embedding scalars
-        predict_xstart=True,                # if True, G.pt predicts signal (False = predict noise)
-        absolute_loss_conditioning=False,   # if True, adds two extra input tokens indicating starting/target metrics
+        parameter_sizes,  # A list of integers indicating the total number of parameters in each layer
+        parameter_names,  # A list of strings indicating the name of each layer in the input networks
+        num_frequencies=128,  # number of frequencies sampled for embedding scalars
+        max_freq_log2=20,  # max log2 frequency for embedding scalars
+        predict_xstart=True,  # if True, G.pt predicts signal (False = predict noise)
+        absolute_loss_conditioning=False,  # if True, adds two extra input tokens indicating starting/target metrics
         use_global_residual=False,
         condition="no",
         condition_n_points=0,
-        **gpt_kwargs                        # Arguments for the Transformer model (depth, heads, etc.)
+        **gpt_kwargs,  # Arguments for the Transformer model (depth, heads, etc.)
     ):
         super().__init__()
         self.predict_xstart = predict_xstart
         self.absolute_loss_conditioning = absolute_loss_conditioning
-        self.dims = 0 # This is for compatibility with UNet
-        self.ae_model = None # This is for compatibility with UNet
+        self.dims = 0  # This is for compatibility with UNet
+        self.ae_model = None  # This is for compatibility with UNet
         self.condition = condition
         self.condition_n_points = condition_n_points
         self.use_global_residual = use_global_residual
-        input_parameter_sizes, output_parameter_sizes, input_parameter_names = \
-            self.compute_token_sizes(parameter_sizes, parameter_names, num_frequencies)
+        (
+            input_parameter_sizes,
+            output_parameter_sizes,
+            input_parameter_names,
+        ) = self.compute_token_sizes(parameter_sizes, parameter_names, num_frequencies)
         self.input_parameter_sizes = input_parameter_sizes
-        self.decoder = GPT(input_parameter_sizes, output_parameter_sizes, input_parameter_names, **gpt_kwargs)
+        self.decoder = GPT(
+            input_parameter_sizes,
+            output_parameter_sizes,
+            input_parameter_names,
+            **gpt_kwargs,
+        )
         self.scalar_embedder = FrequencyEmbedder(num_frequencies, max_freq_log2)
 
         # Initialize with identity output:
@@ -412,7 +471,7 @@ class Transformer(nn.Module):
         # Account for the scalar inputs (diffusion timestep and loss/error/return inputs):
         scalar_token_size = [self.get_scalar_token_size(num_frequencies)]
         input_parameter_sizes.extend([scalar_token_size])
-        input_parameter_names.extend(['timestep_embedding'])
+        input_parameter_names.extend(["timestep_embedding"])
         return input_parameter_sizes, output_parameter_sizes, input_parameter_names
 
     def configure_optimizers(self, lr, wd, betas):
@@ -430,7 +489,7 @@ class Transformer(nn.Module):
         for p in self.parameters():
             param_norm = p.grad.detach().data.norm(2)
             total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** 0.5
+        total_norm = total_norm**0.5
         return total_norm
 
     def forward(self, x, t, x_prev=None):
@@ -464,8 +523,15 @@ class Transformer(nn.Module):
             output = output + x_prev
         return output
 
+
 if __name__ == "__main__":
-    mlp = MLP(in_size=6, out_size=1, hidden_neurons=[16, 16, 16], use_tanh=True, over_param=False)
+    mlp = MLP(
+        in_size=6,
+        out_size=1,
+        hidden_neurons=[16, 16, 16],
+        use_tanh=True,
+        over_param=False,
+    )
     state_dict = mlp.state_dict()
     layers = []
     layer_names = []
@@ -477,7 +543,7 @@ if __name__ == "__main__":
         input.append(state_dict[l].flatten())
     input = torch.hstack(input).unsqueeze(0).cuda()
 
-    net = Transformer(layers, layer_names, split_policy='layer_by_layer').cuda()
+    net = Transformer(layers, layer_names, split_policy="layer_by_layer").cuda()
     t = torch.randint(0, 1000, (len(input), 1)).cuda()
     print(input.shape, t.shape)
     out = net(input, t)

@@ -1,22 +1,35 @@
 import os
-import numpy as np
 
-from tqdm import tqdm
+import numpy as np
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 
 class S3DISDataset(Dataset):
-    def __init__(self, split='train', data_root='trainval_fullarea', num_point=4096, test_area=5, block_size=1.0, sample_rate=1.0, transform=None):
+    def __init__(
+        self,
+        split="train",
+        data_root="trainval_fullarea",
+        num_point=4096,
+        test_area=5,
+        block_size=1.0,
+        sample_rate=1.0,
+        transform=None,
+    ):
         super().__init__()
         self.num_point = num_point
         self.block_size = block_size
         self.transform = transform
         rooms = sorted(os.listdir(data_root))
-        rooms = [room for room in rooms if 'Area_' in room]
-        if split == 'train':
-            rooms_split = [room for room in rooms if not 'Area_{}'.format(test_area) in room]
+        rooms = [room for room in rooms if "Area_" in room]
+        if split == "train":
+            rooms_split = [
+                room for room in rooms if not "Area_{}".format(test_area) in room
+            ]
         else:
-            rooms_split = [room for room in rooms if 'Area_{}'.format(test_area) in room]
+            rooms_split = [
+                room for room in rooms if "Area_{}".format(test_area) in room
+            ]
 
         self.room_points, self.room_labels = [], []
         self.room_coord_min, self.room_coord_max = [], []
@@ -29,7 +42,10 @@ class S3DISDataset(Dataset):
             points, labels = room_data[:, 0:6], room_data[:, 6]  # xyzrgb, N*6; l, N
             tmp, _ = np.histogram(labels, range(14))
             labelweights += tmp
-            coord_min, coord_max = np.amin(points, axis=0)[:3], np.amax(points, axis=0)[:3]
+            coord_min, coord_max = (
+                np.amin(points, axis=0)[:3],
+                np.amax(points, axis=0)[:3],
+            )
             self.room_points.append(points), self.room_labels.append(labels)
             self.room_coord_min.append(coord_min), self.room_coord_max.append(coord_max)
             num_point_all.append(labels.size)
@@ -47,22 +63,31 @@ class S3DISDataset(Dataset):
 
     def __getitem__(self, idx):
         room_idx = self.room_idxs[idx]
-        points = self.room_points[room_idx]   # N * 6
-        labels = self.room_labels[room_idx]   # N
+        points = self.room_points[room_idx]  # N * 6
+        labels = self.room_labels[room_idx]  # N
         N_points = points.shape[0]
 
-        while (True):
+        while True:
             center = points[np.random.choice(N_points)][:3]
             block_min = center - [self.block_size / 2.0, self.block_size / 2.0, 0]
             block_max = center + [self.block_size / 2.0, self.block_size / 2.0, 0]
-            point_idxs = np.where((points[:, 0] >= block_min[0]) & (points[:, 0] <= block_max[0]) & (points[:, 1] >= block_min[1]) & (points[:, 1] <= block_max[1]))[0]
+            point_idxs = np.where(
+                (points[:, 0] >= block_min[0])
+                & (points[:, 0] <= block_max[0])
+                & (points[:, 1] >= block_min[1])
+                & (points[:, 1] <= block_max[1])
+            )[0]
             if point_idxs.size > 1024:
                 break
 
         if point_idxs.size >= self.num_point:
-            selected_point_idxs = np.random.choice(point_idxs, self.num_point, replace=False)
+            selected_point_idxs = np.random.choice(
+                point_idxs, self.num_point, replace=False
+            )
         else:
-            selected_point_idxs = np.random.choice(point_idxs, self.num_point, replace=True)
+            selected_point_idxs = np.random.choice(
+                point_idxs, self.num_point, replace=True
+            )
 
         # normalize
         selected_points = points[selected_point_idxs, :]  # num_point * 6
@@ -76,15 +101,27 @@ class S3DISDataset(Dataset):
         current_points[:, 0:6] = selected_points
         current_labels = labels[selected_point_idxs]
         if self.transform is not None:
-            current_points, current_labels = self.transform(current_points, current_labels)
+            current_points, current_labels = self.transform(
+                current_points, current_labels
+            )
         return current_points, current_labels
 
     def __len__(self):
         return len(self.room_idxs)
 
-class ScannetDatasetWholeScene():
+
+class ScannetDatasetWholeScene:
     # prepare to give prediction on each points
-    def __init__(self, root, block_points=4096, split='test', test_area=5, stride=0.5, block_size=1.0, padding=0.001):
+    def __init__(
+        self,
+        root,
+        block_points=4096,
+        split="test",
+        test_area=5,
+        stride=0.5,
+        block_size=1.0,
+        padding=0.001,
+    ):
         self.block_points = block_points
         self.block_size = block_size
         self.padding = padding
@@ -92,11 +129,15 @@ class ScannetDatasetWholeScene():
         self.split = split
         self.stride = stride
         self.scene_points_num = []
-        assert split in ['train', 'test']
-        if self.split == 'train':
-            self.file_list = [d for d in os.listdir(root) if d.find('Area_%d' % test_area) is -1]
+        assert split in ["train", "test"]
+        if self.split == "train":
+            self.file_list = [
+                d for d in os.listdir(root) if d.find("Area_%d" % test_area) is -1
+            ]
         else:
-            self.file_list = [d for d in os.listdir(root) if d.find('Area_%d' % test_area) is not -1]
+            self.file_list = [
+                d for d in os.listdir(root) if d.find("Area_%d" % test_area) is not -1
+            ]
         self.scene_points_list = []
         self.semantic_labels_list = []
         self.room_coord_min, self.room_coord_max = [], []
@@ -105,7 +146,10 @@ class ScannetDatasetWholeScene():
             points = data[:, :3]
             self.scene_points_list.append(data[:, :6])
             self.semantic_labels_list.append(data[:, 6])
-            coord_min, coord_max = np.amin(points, axis=0)[:3], np.amax(points, axis=0)[:3]
+            coord_min, coord_max = (
+                np.amin(points, axis=0)[:3],
+                np.amax(points, axis=0)[:3],
+            )
             self.room_coord_min.append(coord_min), self.room_coord_max.append(coord_max)
         assert len(self.scene_points_list) == len(self.semantic_labels_list)
 
@@ -120,12 +164,23 @@ class ScannetDatasetWholeScene():
 
     def __getitem__(self, index):
         point_set_ini = self.scene_points_list[index]
-        points = point_set_ini[:,:6]
+        points = point_set_ini[:, :6]
         labels = self.semantic_labels_list[index]
         coord_min, coord_max = np.amin(points, axis=0)[:3], np.amax(points, axis=0)[:3]
-        grid_x = int(np.ceil(float(coord_max[0] - coord_min[0] - self.block_size) / self.stride) + 1)
-        grid_y = int(np.ceil(float(coord_max[1] - coord_min[1] - self.block_size) / self.stride) + 1)
-        data_room, label_room, sample_weight, index_room = np.array([]), np.array([]), np.array([]),  np.array([])
+        grid_x = int(
+            np.ceil(float(coord_max[0] - coord_min[0] - self.block_size) / self.stride)
+            + 1
+        )
+        grid_y = int(
+            np.ceil(float(coord_max[1] - coord_min[1] - self.block_size) / self.stride)
+            + 1
+        )
+        data_room, label_room, sample_weight, index_room = (
+            np.array([]),
+            np.array([]),
+            np.array([]),
+            np.array([]),
+        )
         for index_y in range(0, grid_y):
             for index_x in range(0, grid_x):
                 s_x = coord_min[0] + index_x * self.stride
@@ -135,14 +190,21 @@ class ScannetDatasetWholeScene():
                 e_y = min(s_y + self.block_size, coord_max[1])
                 s_y = e_y - self.block_size
                 point_idxs = np.where(
-                    (points[:, 0] >= s_x - self.padding) & (points[:, 0] <= e_x + self.padding) & (points[:, 1] >= s_y - self.padding) & (
-                                points[:, 1] <= e_y + self.padding))[0]
+                    (points[:, 0] >= s_x - self.padding)
+                    & (points[:, 0] <= e_x + self.padding)
+                    & (points[:, 1] >= s_y - self.padding)
+                    & (points[:, 1] <= e_y + self.padding)
+                )[0]
                 if point_idxs.size == 0:
                     continue
                 num_batch = int(np.ceil(point_idxs.size / self.block_points))
                 point_size = int(num_batch * self.block_points)
-                replace = False if (point_size - point_idxs.size <= point_idxs.size) else True
-                point_idxs_repeat = np.random.choice(point_idxs, point_size - point_idxs.size, replace=replace)
+                replace = (
+                    False if (point_size - point_idxs.size <= point_idxs.size) else True
+                )
+                point_idxs_repeat = np.random.choice(
+                    point_idxs, point_size - point_idxs.size, replace=replace
+                )
                 point_idxs = np.concatenate((point_idxs, point_idxs_repeat))
                 np.random.shuffle(point_idxs)
                 data_batch = points[point_idxs, :]
@@ -157,10 +219,24 @@ class ScannetDatasetWholeScene():
                 label_batch = labels[point_idxs].astype(int)
                 batch_weight = self.labelweights[label_batch]
 
-                data_room = np.vstack([data_room, data_batch]) if data_room.size else data_batch
-                label_room = np.hstack([label_room, label_batch]) if label_room.size else label_batch
-                sample_weight = np.hstack([sample_weight, batch_weight]) if label_room.size else batch_weight
-                index_room = np.hstack([index_room, point_idxs]) if index_room.size else point_idxs
+                data_room = (
+                    np.vstack([data_room, data_batch]) if data_room.size else data_batch
+                )
+                label_room = (
+                    np.hstack([label_room, label_batch])
+                    if label_room.size
+                    else label_batch
+                )
+                sample_weight = (
+                    np.hstack([sample_weight, batch_weight])
+                    if label_room.size
+                    else batch_weight
+                )
+                index_room = (
+                    np.hstack([index_room, point_idxs])
+                    if index_room.size
+                    else point_idxs
+                )
         data_room = data_room.reshape((-1, self.block_points, data_room.shape[1]))
         label_room = label_room.reshape((-1, self.block_points))
         sample_weight = sample_weight.reshape((-1, self.block_points))
@@ -170,25 +246,47 @@ class ScannetDatasetWholeScene():
     def __len__(self):
         return len(self.scene_points_list)
 
-if __name__ == '__main__':
-    data_root = '/data/yxu/PointNonLocal/data/stanford_indoor3d/'
+
+if __name__ == "__main__":
+    data_root = "/data/yxu/PointNonLocal/data/stanford_indoor3d/"
     num_point, test_area, block_size, sample_rate = 4096, 5, 1.0, 0.01
 
-    point_data = S3DISDataset(split='train', data_root=data_root, num_point=num_point, test_area=test_area, block_size=block_size, sample_rate=sample_rate, transform=None)
-    print('point data size:', point_data.__len__())
-    print('point data 0 shape:', point_data.__getitem__(0)[0].shape)
-    print('point label 0 shape:', point_data.__getitem__(0)[1].shape)
-    import torch, time, random
+    point_data = S3DISDataset(
+        split="train",
+        data_root=data_root,
+        num_point=num_point,
+        test_area=test_area,
+        block_size=block_size,
+        sample_rate=sample_rate,
+        transform=None,
+    )
+    print("point data size:", point_data.__len__())
+    print("point data 0 shape:", point_data.__getitem__(0)[0].shape)
+    print("point label 0 shape:", point_data.__getitem__(0)[1].shape)
+    import random
+    import time
+
+    import torch
+
     manual_seed = 123
     random.seed(manual_seed)
     np.random.seed(manual_seed)
     torch.manual_seed(manual_seed)
     torch.cuda.manual_seed_all(manual_seed)
+
     def worker_init_fn(worker_id):
         random.seed(manual_seed + worker_id)
-    train_loader = torch.utils.data.DataLoader(point_data, batch_size=16, shuffle=True, num_workers=16, pin_memory=True, worker_init_fn=worker_init_fn)
+
+    train_loader = torch.utils.data.DataLoader(
+        point_data,
+        batch_size=16,
+        shuffle=True,
+        num_workers=16,
+        pin_memory=True,
+        worker_init_fn=worker_init_fn,
+    )
     for idx in range(4):
         end = time.time()
         for i, (input, target) in enumerate(train_loader):
-            print('time: {}/{}--{}'.format(i+1, len(train_loader), time.time() - end))
+            print("time: {}/{}--{}".format(i + 1, len(train_loader), time.time() - end))
             end = time.time()

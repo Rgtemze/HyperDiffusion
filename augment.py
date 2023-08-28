@@ -9,6 +9,7 @@ Although we're not using augmentation in final paper, it's here for reference
 import torch
 from torch import nn
 
+
 def permute_out(tensors, permutation):
     if isinstance(tensors, torch.Tensor):
         tensors = (tensors,)
@@ -28,7 +29,6 @@ def permute_in_out(tensor, permutation_in, permutation_out):
 
 
 def random_permute_flat(nets, architecture, seed, permutation_fn):
-
     """
     Applies an output-preserving parameter permutation to a list of nets, eah with shape (D,).
     The same permutation is applied to each network in the list.
@@ -55,32 +55,43 @@ def random_permute_flat(nets, architecture, seed, permutation_fn):
             num_params = tensor.numel()
             shape = tensor.shape
             indices = torch.arange(total, num_params + total).view(shape)
-            if permute == 'out':
+            if permute == "out":
                 indices = indices[permutation]
-            elif permute == 'in':
+            elif permute == "in":
                 indices = indices[:, permutation]
-            elif permute == 'both':
+            elif permute == "both":
                 indices = indices[:, permutation][permutation2]
-            elif permute == 'none':
+            elif permute == "none":
                 pass
             total += num_params
             full_permute.append(indices.flatten())
 
-    build_in_fn = lambda *args: build_index(*args, permute='in')
-    build_out_fn = lambda *args: build_index(*args, permute='out')
-    build_both_fn = lambda *args: build_index(*args, permute='both')
-    register_fn = lambda x: build_index(x, permutation=None, permute='none')
-    permutation_fn(architecture, generator, build_in_fn, build_out_fn, build_both_fn, register_fn)
+    build_in_fn = lambda *args: build_index(*args, permute="in")
+    build_out_fn = lambda *args: build_index(*args, permute="out")
+    build_both_fn = lambda *args: build_index(*args, permute="both")
+    register_fn = lambda x: build_index(x, permutation=None, permute="none")
+    permutation_fn(
+        architecture, generator, build_in_fn, build_out_fn, build_both_fn, register_fn
+    )
 
     full_permute = torch.cat(full_permute)
     assert total == full_permute.size(0) == nets[0].size(0)
-    permuted_nets = [net[full_permute] for net in nets]  # Apply the same permutation to each net
+    permuted_nets = [
+        net[full_permute] for net in nets
+    ]  # Apply the same permutation to each net
     if input_is_tensor:  # Unpack the list to return in same format as input
         permuted_nets = permuted_nets[0]
     return permuted_nets
 
-def random_permute_mlp(net, generator=None, permute_in_fn=permute_in, permute_out_fn=permute_out,
-                       permute_in_out_fn=permute_in_out, register_fn=lambda x: x):
+
+def random_permute_mlp(
+    net,
+    generator=None,
+    permute_in_fn=permute_in,
+    permute_out_fn=permute_out,
+    permute_in_out_fn=permute_in_out,
+    register_fn=lambda x: x,
+):
     # NOTE: when using this function as part of random_permute_flat, THE ORDER IN WHICH
     # PERMUTE_OUT_FN, PERMUTE_IN_FN, etc. get called IS REALLY IMPORTANT. The order MUST be consistent
     # with whatever net.state_dict().keys() returns, otherwise the permutation will be INCORRECT.
@@ -104,8 +115,15 @@ def random_permute_mlp(net, generator=None, permute_in_fn=permute_in, permute_ou
             permute_out_fn(linear.bias, new_permute)
             running_permute = new_permute
 
-def sorted_permute_mlp(net, generator=None, permute_in_fn=permute_in, permute_out_fn=permute_out,
-                       permute_in_out_fn=permute_in_out, register_fn=lambda x: x):
+
+def sorted_permute_mlp(
+    net,
+    generator=None,
+    permute_in_fn=permute_in,
+    permute_out_fn=permute_out,
+    permute_in_out_fn=permute_in_out,
+    register_fn=lambda x: x,
+):
     # NOTE: when using this function as part of random_permute_flat, THE ORDER IN WHICH
     # PERMUTE_OUT_FN, PERMUTE_IN_FN, etc. get called IS REALLY IMPORTANT. The order MUST be consistent
     # with whatever net.state_dict().keys() returns, otherwise the permutation will be INCORRECT.

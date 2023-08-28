@@ -5,35 +5,50 @@ import pyrender
 import torch
 import trimesh
 
-from Pointnet_Pointnet2_pytorch.log.classification.pointnet2_ssg_wo_normals import pointnet2_cls_ssg
-from mlp_models import MLP3D, MLP
+from mlp_models import MLP, MLP3D
+from Pointnet_Pointnet2_pytorch.log.classification.pointnet2_ssg_wo_normals import \
+    pointnet2_cls_ssg
 from torchmetrics_fid import FrechetInceptionDistance
 
 # Using edited 2D-FID code of torch_metrics
 fid = FrechetInceptionDistance(reset_real_features=True)
 
 
-def calculate_fid_3d(sample_pcs, ref_pcs, wandb_logger,
-                     path="Pointnet_Pointnet2_pytorch/log/classification/pointnet2_ssg_wo_normals/checkpoints/best_model.pth"):
+def calculate_fid_3d(
+    sample_pcs,
+    ref_pcs,
+    wandb_logger,
+    path="Pointnet_Pointnet2_pytorch/log/classification/pointnet2_ssg_wo_normals/checkpoints/best_model.pth",
+):
     batch_size = 10
     point_net = pointnet2_cls_ssg.get_model(40, normal_channel=False)
     checkpoint = torch.load(path)
-    point_net.load_state_dict(checkpoint['model_state_dict'])
+    point_net.load_state_dict(checkpoint["model_state_dict"])
     point_net.eval().to(sample_pcs.device)
     count = len(sample_pcs)
     for i in range(ceil(count / batch_size)):
         if i * batch_size >= count:
             break
-        print(ref_pcs[i * batch_size: (i + 1) * batch_size].shape, i * batch_size, (i + 1) * batch_size)
-        real_features = point_net(ref_pcs[i * batch_size: (i + 1) * batch_size].transpose(2, 1))[2]
-        fake_features = point_net(sample_pcs[i * batch_size: (i + 1) * batch_size].transpose(2, 1))[2]
+        print(
+            ref_pcs[i * batch_size : (i + 1) * batch_size].shape,
+            i * batch_size,
+            (i + 1) * batch_size,
+        )
+        real_features = point_net(
+            ref_pcs[i * batch_size : (i + 1) * batch_size].transpose(2, 1)
+        )[2]
+        fake_features = point_net(
+            sample_pcs[i * batch_size : (i + 1) * batch_size].transpose(2, 1)
+        )[2]
         fid.update(real_features, real=True, features=real_features)
         fid.update(fake_features, real=False, features=fake_features)
 
     x = fid.compute()
     fid.reset()
-    print('x fid_value', x)
+    print("x fid_value", x)
     return x
+
+
 class Config:
     config = None
 
@@ -75,8 +90,6 @@ def generate_mlp_from_weights(weights, mlp_kwargs):
     return mlp
 
 
-
-
 def render_meshes(meshes):
     out_imgs = []
     for mesh in meshes:
@@ -88,12 +101,15 @@ def render_meshes(meshes):
 def render_mesh(obj):
     if isinstance(obj, trimesh.Trimesh):
         # Handle mesh rendering
-        mesh = pyrender.Mesh.from_trimesh(obj, material=pyrender.MetallicRoughnessMaterial(
-            alphaMode='BLEND',
-            baseColorFactor=[1, 0.3, 0.3, 1.0],
-            metallicFactor=0.2,
-            roughnessFactor=0.8,
-        ))
+        mesh = pyrender.Mesh.from_trimesh(
+            obj,
+            material=pyrender.MetallicRoughnessMaterial(
+                alphaMode="BLEND",
+                baseColorFactor=[1, 0.3, 0.3, 1.0],
+                metallicFactor=0.2,
+                roughnessFactor=0.8,
+            ),
+        )
     else:
         # Handle point cloud rendering, (converting it into a mesh instance)
         pts = obj
@@ -118,6 +134,7 @@ def render_mesh(obj):
     color, depth = r.render(scene)
     r.delete()
     return color, depth
+
 
 # Calculate look-at matrix for rendering
 def look_at(eye, target, up):

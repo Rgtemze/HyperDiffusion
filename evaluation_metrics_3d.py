@@ -4,18 +4,18 @@
 From https://github.com/stevenygd/PointFlow/tree/master/metrics
 """
 import os
-
-import torch
-import numpy as np
 import warnings
 
+import numpy as np
+import torch
+import trimesh
+from numpy.linalg import norm
+from scipy.spatial.transform import Rotation
 from scipy.stats import entropy
 from sklearn.neighbors import NearestNeighbors
-from numpy.linalg import norm
 from tqdm.auto import tqdm
+
 import wandb
-from scipy.spatial.transform import Rotation
-import trimesh
 
 _EMD_NOT_IMPL_WARNED = False
 
@@ -26,11 +26,13 @@ def emd_approx(sample, ref):
 
     if not _EMD_NOT_IMPL_WARNED:
         _EMD_NOT_IMPL_WARNED = True
-        print('\n\n[WARNING]')
-        print('  * EMD is not implemented due to GPU compatability issue.')
-        print('  * We will set all EMD to zero by default.')
-        print('  * You may implement your own EMD in the function `emd_approx` in ./evaluation/evaluation_metrics.py')
-        print('\n')
+        print("\n\n[WARNING]")
+        print("  * EMD is not implemented due to GPU compatability issue.")
+        print("  * We will set all EMD to zero by default.")
+        print(
+            "  * You may implement your own EMD in the function `emd_approx` in ./evaluation/evaluation_metrics.py"
+        )
+        print("\n")
     return emd_val
 
 
@@ -44,7 +46,7 @@ def distChamfer(a, b):
     diag_ind = torch.arange(0, num_points).to(a).long()
     rx = xx[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
     ry = yy[:, diag_ind, diag_ind].unsqueeze(1).expand_as(yy)
-    P = (rx.transpose(2, 1) + ry - 2 * zz)
+    P = rx.transpose(2, 1) + ry - 2 * zz
     return P.min(1)[0], P.min(2)[0]
 
 
@@ -54,7 +56,7 @@ def EMD_CD(ref_pcs, batch_size, diff_module, n_points, reduced=True):
     cd_lst = []
     iterator = range(0, N_ref, batch_size)
 
-    for b_start in tqdm(iterator, desc='EMD-CD'):
+    for b_start in tqdm(iterator, desc="EMD-CD"):
         b_end = min(N_ref, b_start + batch_size)
         ref_batch = ref_pcs[b_start:b_end]
         sample_x_0s = diff_module.diff.sample(len(ref_batch))
@@ -74,14 +76,17 @@ def EMD_CD(ref_pcs, batch_size, diff_module, n_points, reduced=True):
         cd = torch.cat(cd_lst)
 
     results = {
-        'MMD-CD': cd,
+        "MMD-CD": cd,
     }
     return results
+
 
 def _pairwise_EMD_CD_4D(sample_pcs, ref_pcs, batch_size, verbose=True):
     M_rs_cd_total, M_rs_emd_total = None, None
     for t in range(sample_pcs.shape[1]):
-        M_rs_cd, M_rs_emd = _pairwise_EMD_CD_(sample_pcs[:, t, ...], ref_pcs[:, t, ...], batch_size, verbose=verbose)
+        M_rs_cd, M_rs_emd = _pairwise_EMD_CD_(
+            sample_pcs[:, t, ...], ref_pcs[:, t, ...], batch_size, verbose=verbose
+        )
         if t == 0:
             M_rs_cd_total, M_rs_emd_total = M_rs_cd, M_rs_emd
         else:
@@ -99,7 +104,7 @@ def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, verbose=True):
     all_emd = []
     iterator = range(N_sample)
     if verbose:
-        iterator = tqdm(iterator, desc='Pairwise EMD-CD')
+        iterator = tqdm(iterator, desc="Pairwise EMD-CD")
     for sample_b_start in iterator:
         sample_batch = sample_pcs[sample_b_start]
 
@@ -115,7 +120,8 @@ def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, verbose=True):
             batch_size_ref = ref_batch.size(0)
             point_dim = ref_batch.size(2)
             sample_batch_exp = sample_batch.view(1, -1, point_dim).expand(
-                batch_size_ref, -1, -1)
+                batch_size_ref, -1, -1
+            )
             sample_batch_exp = sample_batch_exp.contiguous()
 
             dl, dr = distChamfer(sample_batch_exp, ref_batch)
@@ -142,14 +148,15 @@ def knn(Mxx, Mxy, Myy, k, sqrt=False):
     n0 = Mxx.size(0)
     n1 = Myy.size(0)
     label = torch.cat((torch.ones(n0), torch.zeros(n1))).to(Mxx)
-    M = torch.cat([
-        torch.cat((Mxx, Mxy), 1),
-        torch.cat((Mxy.transpose(0, 1), Myy), 1)], 0)
+    M = torch.cat(
+        [torch.cat((Mxx, Mxy), 1), torch.cat((Mxy.transpose(0, 1), Myy), 1)], 0
+    )
     if sqrt:
         M = M.abs().sqrt()
-    INFINITY = float('inf')
+    INFINITY = float("inf")
     val, idx = (M + torch.diag(INFINITY * torch.ones(n0 + n1).to(Mxx))).topk(
-        k, 0, False)
+        k, 0, False
+    )
 
     count = torch.zeros(n0 + n1).to(Mxx)
     for i in range(0, k):
@@ -157,19 +164,21 @@ def knn(Mxx, Mxy, Myy, k, sqrt=False):
     pred = torch.ge(count, (float(k) / 2) * torch.ones(n0 + n1).to(Mxx)).float()
 
     s = {
-        'tp': (pred * label).sum(),
-        'fp': (pred * (1 - label)).sum(),
-        'fn': ((1 - pred) * label).sum(),
-        'tn': ((1 - pred) * (1 - label)).sum(),
+        "tp": (pred * label).sum(),
+        "fp": (pred * (1 - label)).sum(),
+        "fn": ((1 - pred) * label).sum(),
+        "tn": ((1 - pred) * (1 - label)).sum(),
     }
 
-    s.update({
-        'precision': s['tp'] / (s['tp'] + s['fp'] + 1e-10),
-        'recall': s['tp'] / (s['tp'] + s['fn'] + 1e-10),
-        'acc_t': s['tp'] / (s['tp'] + s['fn'] + 1e-10),
-        'acc_f': s['tn'] / (s['tn'] + s['fp'] + 1e-10),
-        'acc': torch.eq(label, pred).float().mean(),
-    })
+    s.update(
+        {
+            "precision": s["tp"] / (s["tp"] + s["fp"] + 1e-10),
+            "recall": s["tp"] / (s["tp"] + s["fn"] + 1e-10),
+            "acc_t": s["tp"] / (s["tp"] + s["fn"] + 1e-10),
+            "acc_f": s["tn"] / (s["tn"] + s["fp"] + 1e-10),
+            "acc": torch.eq(label, pred).float().mean(),
+        }
+    )
     return s
 
 
@@ -182,9 +191,9 @@ def lgan_mmd_cov(all_dist):
     cov = float(min_idx.unique().view(-1).size(0)) / float(N_ref)
     cov = torch.tensor(cov).to(all_dist)
     return {
-        'lgan_mmd': mmd,
-        'lgan_cov': cov,
-        'lgan_mmd_smp': mmd_smp,
+        "lgan_mmd": mmd,
+        "lgan_cov": cov,
+        "lgan_mmd_smp": mmd_smp,
     }
 
 
@@ -197,10 +206,11 @@ def lgan_mmd_cov_match(all_dist):
     cov = float(min_idx.unique().view(-1).size(0)) / float(N_ref)
     cov = torch.tensor(cov).to(all_dist)
     return {
-               'lgan_mmd': mmd,
-               'lgan_cov': cov,
-               'lgan_mmd_smp': mmd_smp,
-           }, min_idx.view(-1)
+        "lgan_mmd": mmd,
+        "lgan_cov": cov,
+        "lgan_mmd_smp": mmd_smp,
+    }, min_idx.view(-1)
+
 
 def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
     results = {}
@@ -216,7 +226,6 @@ def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
 
     ## CD
     res_cd = lgan_mmd_cov(M_rs_cd.t())
-
 
     # We use the below code to visualize some goodly&badly performing shapes
     # you can uncomment if you want to analyze that
@@ -252,15 +261,9 @@ def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
     # print(min_dist, min_dist_sample_idx, min_dist_sorted_idx)
     # print("Sorted:", min_dist[min_dist_sorted_idx])
 
-
-
-
-
-    results.update({
-        "%s-CD" % k: v for k, v in res_cd.items()
-    })
+    results.update({"%s-CD" % k: v for k, v in res_cd.items()})
     for k, v in results.items():
-        print('[%s] %.8f' % (k, v.item()))
+        print("[%s] %.8f" % (k, v.item()))
 
     M_rr_cd, M_rr_emd = _pairwise_EMD_CD_4D(ref_pcs, ref_pcs, batch_size)
     M_ss_cd, M_ss_emd = _pairwise_EMD_CD_4D(sample_pcs, sample_pcs, batch_size)
@@ -268,9 +271,9 @@ def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
     # 1-NN results
     ## CD
     one_nn_cd_res = knn(M_rr_cd, M_rs_cd, M_ss_cd, 1, sqrt=False)
-    results.update({
-        "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if 'acc' in k
-    })
+    results.update(
+        {"1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if "acc" in k}
+    )
 
     ## EMD
     one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
@@ -279,6 +282,7 @@ def compute_all_metrics_4d(sample_pcs, ref_pcs, batch_size, logger):
     # })
 
     return results
+
 
 def compute_all_metrics(sample_pcs, ref_pcs, batch_size, logger):
     results = {}
@@ -331,12 +335,9 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size, logger):
     #     torch.save(min_dist[min_dist_sorted_idx], f"{orig_meshes_dir}/min_dist_sorted.pth")
     #     print("Sorted:", min_dist[min_dist_sorted_idx])
 
-
-    results.update({
-        "%s-CD" % k: v for k, v in res_cd.items()
-    })
+    results.update({"%s-CD" % k: v for k, v in res_cd.items()})
     for k, v in results.items():
-        print('[%s] %.8f' % (k, v.item()))
+        print("[%s] %.8f" % (k, v.item()))
 
     M_rr_cd, M_rr_emd = _pairwise_EMD_CD_(ref_pcs, ref_pcs, batch_size)
     M_ss_cd, M_ss_emd = _pairwise_EMD_CD_(sample_pcs, sample_pcs, batch_size)
@@ -344,9 +345,9 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size, logger):
     # 1-NN results
     ## CD
     one_nn_cd_res = knn(M_rr_cd, M_rs_cd, M_ss_cd, 1, sqrt=False)
-    results.update({
-        "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if 'acc' in k
-    })
+    results.update(
+        {"1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if "acc" in k}
+    )
 
     ## EMD
     one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
@@ -381,8 +382,7 @@ def unit_cube_grid_point_cloud(resolution, clip_sphere=False):
     return grid, spacing
 
 
-def jsd_between_point_cloud_sets(
-        sample_pcs, ref_pcs, resolution=28):
+def jsd_between_point_cloud_sets(sample_pcs, ref_pcs, resolution=28):
     """Computes the JSD between two sets of point-clouds,
        as introduced in the paper
     ```Learning Representations And Generative Models For 3D Point Clouds```.
@@ -392,15 +392,14 @@ def jsd_between_point_cloud_sets(
         resolution: (int) grid-resolution. Affects granularity of measurements.
     """
     in_unit_sphere = True
-    sample_grid_var = entropy_of_occupancy_grid(
-        sample_pcs, resolution, in_unit_sphere)[1]
-    ref_grid_var = entropy_of_occupancy_grid(
-        ref_pcs, resolution, in_unit_sphere)[1]
+    sample_grid_var = entropy_of_occupancy_grid(sample_pcs, resolution, in_unit_sphere)[
+        1
+    ]
+    ref_grid_var = entropy_of_occupancy_grid(ref_pcs, resolution, in_unit_sphere)[1]
     return jensen_shannon_divergence(sample_grid_var, ref_grid_var)
 
 
-def entropy_of_occupancy_grid(
-        pclouds, grid_resolution, in_sphere=False, verbose=False):
+def entropy_of_occupancy_grid(pclouds, grid_resolution, in_sphere=False, verbose=False):
     """Given a collection of point-clouds, estimate the entropy of
     the random variables corresponding to occupancy-grid activation patterns.
     Inputs:
@@ -411,11 +410,11 @@ def entropy_of_occupancy_grid(
     bound = 0.5 + epsilon
     if abs(np.max(pclouds)) > bound or abs(np.min(pclouds)) > bound:
         if verbose:
-            warnings.warn('Point-clouds are not in unit cube.')
+            warnings.warn("Point-clouds are not in unit cube.")
 
-    if in_sphere and np.max(np.sqrt(np.sum(pclouds ** 2, axis=2))) > bound:
+    if in_sphere and np.max(np.sqrt(np.sum(pclouds**2, axis=2))) > bound:
         if verbose:
-            warnings.warn('Point-clouds are not in unit sphere.')
+            warnings.warn("Point-clouds are not in unit sphere.")
 
     grid_coordinates, _ = unit_cube_grid_point_cloud(grid_resolution, in_sphere)
     grid_coordinates = grid_coordinates.reshape(-1, 3)
@@ -423,7 +422,7 @@ def entropy_of_occupancy_grid(
     grid_bernoulli_rvars = np.zeros(len(grid_coordinates))
     nn = NearestNeighbors(n_neighbors=1).fit(grid_coordinates)
 
-    for pc in tqdm(pclouds, desc='JSD'):
+    for pc in tqdm(pclouds, desc="JSD"):
         _, indices = nn.kneighbors(pc)
         indices = np.squeeze(indices)
         for i in indices:
@@ -444,9 +443,9 @@ def entropy_of_occupancy_grid(
 
 def jensen_shannon_divergence(P, Q):
     if np.any(P < 0) or np.any(Q < 0):
-        raise ValueError('Negative values.')
+        raise ValueError("Negative values.")
     if len(P) != len(Q):
-        raise ValueError('Non equal size.')
+        raise ValueError("Non equal size.")
 
     P_ = P / np.sum(P)  # Ensure probabilities.
     Q_ = Q / np.sum(Q)
@@ -459,7 +458,7 @@ def jensen_shannon_divergence(P, Q):
     res2 = _jsdiv(P_, Q_)
 
     if not np.allclose(res, res2, atol=10e-5, rtol=0):
-        warnings.warn('Numerical values of two JSD methods don\'t agree.')
+        warnings.warn("Numerical values of two JSD methods don't agree.")
 
     return res
 
@@ -483,7 +482,7 @@ def _jsdiv(P, Q):
     return 0.5 * (_kldiv(P_, M) + _kldiv(Q_, M))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     a = torch.randn([16, 2048, 3]).cuda()
     b = torch.randn([16, 2048, 3]).cuda()
     print(EMD_CD(a, b, batch_size=8))

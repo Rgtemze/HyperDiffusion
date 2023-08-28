@@ -18,14 +18,15 @@ import torch
 from torch import Tensor
 from torch.autograd import Function
 from torch.nn import Module
-
 from torchmetrics.metric import Metric
 from torchmetrics.utilities import rank_zero_info, rank_zero_warn
 from torchmetrics.utilities.data import dim_zero_cat
-from torchmetrics.utilities.imports import _SCIPY_AVAILABLE, _TORCH_FIDELITY_AVAILABLE
+from torchmetrics.utilities.imports import (_SCIPY_AVAILABLE,
+                                            _TORCH_FIDELITY_AVAILABLE)
 
 if _TORCH_FIDELITY_AVAILABLE:
-    from torch_fidelity.feature_extractor_inceptionv3 import FeatureExtractorInceptionV3
+    from torch_fidelity.feature_extractor_inceptionv3 import \
+        FeatureExtractorInceptionV3
 else:
 
     class FeatureExtractorInceptionV3(Module):  # type: ignore
@@ -95,7 +96,9 @@ class MatrixSquareRoot(Function):
 sqrtm = MatrixSquareRoot.apply
 
 
-def _compute_fid(mu1: Tensor, sigma1: Tensor, mu2: Tensor, sigma2: Tensor, eps: float = 1e-6) -> Tensor:
+def _compute_fid(
+    mu1: Tensor, sigma1: Tensor, mu2: Tensor, sigma2: Tensor, eps: float = 1e-6
+) -> Tensor:
     r"""
     Adjusted version of `Fid Score`_
 
@@ -117,7 +120,9 @@ def _compute_fid(mu1: Tensor, sigma1: Tensor, mu2: Tensor, sigma2: Tensor, eps: 
     covmean = sqrtm(sigma1.mm(sigma2))
     # Product might be almost singular
     if not torch.isfinite(covmean).all():
-        rank_zero_info(f"FID calculation produces singular product; adding {eps} to diagonal of covariance estimates")
+        rank_zero_info(
+            f"FID calculation produces singular product; adding {eps} to diagonal of covariance estimates"
+        )
         offset = torch.eye(sigma1.size(0), device=mu1.device, dtype=mu1.dtype) * eps
         covmean = sqrtm((sigma1 + offset).mm(sigma2 + offset))
 
@@ -230,7 +235,9 @@ class FrechetInceptionDistance(Metric):
                     f"Integer input to argument `feature` must be one of {valid_int_input}, but got {feature}."
                 )
 
-            self.inception = NoTrainInceptionV3(name="inception-v3-compat", features_list=[str(feature)])
+            self.inception = NoTrainInceptionV3(
+                name="inception-v3-compat", features_list=[str(feature)]
+            )
         elif isinstance(feature, Module):
             self.inception = feature
         else:
