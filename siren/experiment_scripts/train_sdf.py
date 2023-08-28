@@ -45,7 +45,7 @@ def get_model(cfg):
 @hydra.main(
     version_base=None,
     config_path="../../configs/overfitting_configs",
-    config_name="overfit_config",
+    config_name="overfit_plane",
 )
 def main(cfg: DictConfig):
     wandb.init(
@@ -214,7 +214,7 @@ def main(cfg: DictConfig):
             )
             print(var.shape, torch.var(tmp))
 
-            # For the first 5 data, I'm outputting shapes
+            # For the first 5 data, outputting shapes
             if i < 5:
                 sdf_decoder = SDFDecoder(
                     cfg.model_type,

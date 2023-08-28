@@ -1,6 +1,8 @@
-@article{erkocc2023hyperdiffusion,
-  title={Hyperdiffusion: Generating implicit neural fields with weight-space diffusion},
-  author={Erko{\c{c}}, Ziya and Ma, Fangchang and Shan, Qi and Nie{\ss}ner, Matthias and Dai, Angela},
-  journal={arXiv preprint arXiv:2303.17015},
-  year={2023}
+@misc{erkoç2023hyperdiffusion,
+  title={HyperDiffusion: Generating Implicit Neural Fields with Weight-Space Diffusion},
+  author={Ziya Erkoç and Fangchang Ma and Qi Shan and Matthias Nießner and Angela Dai},
+  year={2023},
+  eprint={2303.17015},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV}
 }

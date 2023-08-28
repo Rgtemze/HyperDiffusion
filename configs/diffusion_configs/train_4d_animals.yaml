@@ -1,12 +1,13 @@
 method: hyper_3d
+move_sampling: other
 calculate_metric_on_test: True
 dedup: False
 test_sample_mult: 1.1
-filter_bad: True
-filter_bad_path: ./data/car_problematic_shapes.txt
+filter_bad: False
+filter_bad_path: ""
 disable_wandb: False
-dataset_dir: ./data
-dataset: 02958343
+dataset_dir: ./data/DeformingThings4D
+dataset: animals
 tensorboard_log_dir: .
 augment: False
 augment_amount: 0
@@ -14,20 +15,20 @@ jitter_augment: False
 normalization_factor: 1
 timesteps: 500
 epochs: 6000
-scheduler: True
+scheduler: False
 scheduler_step: 200
 best_model_save_path:
 mode: train
-mlps_folder_train: ./mlp_weights/3d_128_car_multires_4_manifoldplus_slower_no_clipgrad
+mlps_folder_train: ./mlp_weights/motion_animals_new
 model_resume_path:
 sampling: ddim
-val_fid_calculation_period: 30
-lr: 0.0002
+val_fid_calculation_period: 40
+lr: 0.00005
 batch_size: 32
 accumulate_grad_batches: 1
 val:
   num_points: 2048
-  num_samples: 60
+  num_samples: 15
 mlp_config:
   params:
     model_type: mlp_3d
@@ -40,7 +41,7 @@ mlp_config:
     out_act: sigmoid
     multires: 4
     use_leaky_relu: False
-    move: False
+    move: True
 diff_config:
   params:
     model_mean_type: START_X
@@ -48,7 +49,7 @@ diff_config:
     loss_type: MSE
 transformer_config:
   params:
-    n_embd: 1920
+    n_embd: 1440
     n_layer: 12
     n_head: 16
     split_policy: layer_by_layer

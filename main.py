@@ -83,7 +83,7 @@ def main(cfg: DictConfig):
     )
     if not cfg.mlp_config.params.move:
         train_object_names = set([str.split(".")[0] for str in train_object_names])
-
+    print(train_object_names)
     # Check if dataset folder already has train,test,val split; create otherwise.
     if method == "hyper_3d":
         mlps_folder_all = mlps_folder_train
@@ -258,9 +258,9 @@ def main(cfg: DictConfig):
         logger=wandb_logger,
         default_root_dir=checkpoint_path,
         callbacks=[
-            best_acc_checkpoint,
-            best_mmd_checkpoint,
-            last_model_saver,
+            # best_acc_checkpoint,
+            # best_mmd_checkpoint,
+            # last_model_saver,
             lr_monitor,
         ],
         check_val_every_n_epoch=Config.get("val_fid_calculation_period"),

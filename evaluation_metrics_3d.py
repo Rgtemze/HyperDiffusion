@@ -17,22 +17,10 @@ from tqdm.auto import tqdm
 
 import wandb
 
-_EMD_NOT_IMPL_WARNED = False
 
 
 def emd_approx(sample, ref):
-    global _EMD_NOT_IMPL_WARNED
     emd_val = torch.zeros([sample.size(0)]).to(sample)
-
-    if not _EMD_NOT_IMPL_WARNED:
-        _EMD_NOT_IMPL_WARNED = True
-        print("\n\n[WARNING]")
-        print("  * EMD is not implemented due to GPU compatability issue.")
-        print("  * We will set all EMD to zero by default.")
-        print(
-            "  * You may implement your own EMD in the function `emd_approx` in ./evaluation/evaluation_metrics.py"
-        )
-        print("\n")
     return emd_val
 
 
@@ -127,7 +115,6 @@ def _pairwise_EMD_CD_(sample_pcs, ref_pcs, batch_size, verbose=True):
             dl, dr = distChamfer(sample_batch_exp, ref_batch)
             cd_lst.append((dl.mean(dim=1) + dr.mean(dim=1)).view(1, -1))
 
-            # emd_batch = EMD(sample_batch_exp, ref_batch, transpose=False)
             emd_batch = emd_approx(sample_batch_exp, ref_batch)
             emd_lst.append(emd_batch.view(1, -1))
 
