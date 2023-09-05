@@ -1,4 +1,6 @@
 # HyperDiffusion
+![workflow badge](https://github.com/Rgtemze/HyperDiffusion/actions/workflows/conda_install_test.yml/badge.svg)
+
 Official code repository of "HyperDiffusion: Generating Implicit Neural Fields with Weight-Space Diffusion" @ ICCV 2023
 
 [Paper](https://arxiv.org/abs/2303.17015) | [Project website](https://www.ziyaerkoc.com/hyperdiffusion) | [Data](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing)
@@ -28,8 +30,6 @@ There are three main folders there:
 - **Point Clouds (2048)** has the set of 2048 points sampled from meshes to be used for metric calculation and baseline training.  
 
 ## Get Started
-![workflow badge](https://github.com/Rgtemze/HyperDiffusion/actions/workflows/conda_install_test.yml/badge.svg)
-
 We have environment file that you can create a conda environment from. Simply run,
 
 ```commandline
