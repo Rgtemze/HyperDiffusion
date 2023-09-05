@@ -11,34 +11,14 @@ I'll release rest of the weights/checkpoints after post-refactor tests are compl
 
 ![Overview image](/static/overview.svg)
 
+## Dependencies
 
-## Code Map
-### Directories
-- **Pointnet_Pointnet2_pytorch**: Includes Pointnet2 definition and weights for 3D FID calculation.
-- **configs**: Containing training and overfitting configs.
-- **data**: Downloaded point cloud files including train-val-test splits go here (see [Get Started](#get-started)) 
-- **diffusion**: Contains all the diffusion logic. Borrowed from [OpenAI](https://github.com/openai/guided-diffusion) .
-- **ldm**: Latent diffusion codebase for Voxel baseline. Borrowed from [official LDM repo](https://github.com/CompVis/latent-diffusion).
-- **mlp_weights**: Includes overfitted MLP weights should be downloaded to here (see [Get Started](#get-started)).
-- **siren**: Modified [SIREN](https://github.com/vsitzmann/siren) codebase. Includes shape overfitting logic.
-- **static**: Images for README file.
-### Generated Directories
-- **lightning_checkpoints**: This will be created once you start training for the first time. It will include checkpoints of the diffusion model, the sub-folder names will be the unique name assigned by the Weights & Biases in addition to timestamp.
-- **outputs**: Hydra creates this folder to store the configs but we mainly send our outputs to Weights & Biases, so, it's not that special.
-- **orig_meshes**: Here we put generated weights as .pth and sometimes generated meshes.
-- **wandb**: Weights & Biases will create this folder to store outputs before sending them to server.
-### Files
-- **augment.py**: Including some augmentation methods, though we don't use them in the main paper.
-- **dataset.py**: `WeightDataset` and `VoxelDataset` definitions which are `torch.Dataset` descendants. Former one is related to our HyperDiffusion method, while the latter one is for Voxel baseline.
-- **embedder.py**: Positional encoding definition.
-- **evaluation_metrics_3d.py**: Methods to calculate MMD, COV and 1-NN from [DPC](https://github.com/luost26/diffusion-point-cloud). Both for 3D and 4D.
-- **hd_utils.py**: Many utility methods ranging from rendering to flattening MLP weights.
-- **hyperdiffusion.py**: Definition of our method, it includes training, testing and validation logics in the form of a Pytorch Lightning module.
-- **hyperdiffusion_env.yaml**: Conda environment file (see [Get Started](#get-started) section).
-- **main.py**: Entry point of our codebase.
-- **mlp_models.py**: Definition of ReLU MLPs with positional encoding.
-- **torchmetrics_fid.py**: Modified torchmetrics fid implementation to calculate 3D-FID.
-- **transformer.py**: GPT definition from [G.pt paper](https://github.com/wpeebles/G.pt).
+* Python 3.7
+* PyTorch 1.13.0
+* CUDA 11.7
+* Weights & Biases (We heavily rely on it for visualization and monitoring)
+
+For full list please see [hyperdiffusion_env.yaml file](/hyperdiffusion_env.yaml)
 
 ## Data
 All the data needed to train and evaluate HyperDiffusion is in [this Drive folder](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing).
@@ -72,28 +52,6 @@ data
 |-- animals
 ```
 _Note: Category id to name conversion is as follows: 02691156 -> airplane, 02958343 -> car, 03001627 -> chair_
-
-
-### Training
-To start training, airplane category:
-```commandline
-python main.py --config-name=train_plane
-```
-car category:
-```commandline
-python main.py --config-name=train_car
-```
-chair category:
-```commandline
-python main.py --config-name=train_chair
-```
-
-We are using [hydra](https://hydra.cc/), you can either specify them from corresponding yaml file or directly modify
-the parameters from terminal. For instance, to change the number of epochs:
-
-```commandline
-python main.py --config-name=train_plane epochs=1
-```
 ### Evaluation
 Download **Checkpoints** folder from [Drive section](#data). Assign the path of that checkpoint to the `best_model_save_path` parameter.
 
@@ -101,36 +59,94 @@ to start evaluating, airplane category:
 ```commandline
 python main.py --config-name=train_plane mode=test best_model_save_path=<path/to/checkpoint>
 ```
-car category:
+(_checkpoints coming soon!_) car category:
 ```commandline
 python main.py --config-name=train_car mode=test best_model_save_path=<path/to/checkpoint>
 ```
-chair category (we have special operations for chair, see our Supplementary Material for details):
+(_checkpoints coming soon!_) chair category (we have special operations for chair, see our Supplementary Material for details):
 ```commandline
 python main.py --config-name=train_chair mode=test best_model_save_path=<path/to/checkpoint> test_sample_mult=2 dedup=True
 ```
+(_checkpoints coming soon_) 4d animals category:
+```commandline
+python main.py --config-name=train_4d_animals --mode=test best_model_save_path=<path/to/checkpoint>
+```
+### Training
+To start training, airplane category:
+```commandline
+python main.py --config-name=train_plane
+```
+(_MLP weights coming soon_) car category:
+```commandline
+python main.py --config-name=train_car
+```
+(_MLP weights coming soon_) chair category:
+```commandline
+python main.py --config-name=train_chair
+```
+(_MLP weights coming soon_) 4d animals category:
+```commandline
+python main.py --config-name=train_4d_animals
+```
 
-### Ovefitting
+We are using [hydra](https://hydra.cc/), you can either specify parameters from corresponding yaml file or directly modify
+them from terminal. For instance, to change the number of epochs:
+
+```commandline
+python main.py --config-name=train_plane epochs=1
+```
+### Overfitting
 We already provide overfitted shapes but if you want to do it yourself. Make sure that you put downloaded [ShapeNet](https://shapenet.org/) shapes into **data** folder. Then, you can run the following:
 ```commandline
 python siren/experiment_scripts/train_sdf.py --config-name=overfit_plane
 ```
+
+
+## Code Map
+### Directories
+- **configs**: Containing training and overfitting configs.
+- **data**: Downloaded point cloud files including train-val-test splits go here (see [Get Started](#get-started)) 
+- **diffusion**: Contains all the diffusion logic. Borrowed from [OpenAI](https://github.com/openai/guided-diffusion) .
+- **ldm**: Latent diffusion codebase for Voxel baseline. Borrowed from [official LDM repo](https://github.com/CompVis/latent-diffusion).
+- **mlp_weights**: Includes overfitted MLP weights should be downloaded to here (see [Get Started](#get-started)).
+- **siren**: Modified [SIREN](https://github.com/vsitzmann/siren) codebase. Includes shape overfitting logic.
+- **static**: Images for README file.
+- **Pointnet_Pointnet2_pytorch**: Includes Pointnet2 definition and weights for 3D FID calculation.
+### Generated Directories
+- **lightning_checkpoints**: This will be created once you start training for the first time. It will include checkpoints of the diffusion model, the sub-folder names will be the unique name assigned by the Weights & Biases in addition to timestamp.
+- **outputs**: Hydra creates this folder to store the configs but we mainly send our outputs to Weights & Biases, so, it's not that special.
+- **orig_meshes**: Here we put generated weights as .pth and sometimes generated meshes.
+- **wandb**: Weights & Biases will create this folder to store outputs before sending them to server.
+### Files
+**Utils**
+- **augment.py**: Including some augmentation methods, though we don't use them in the main paper.
+- **dataset.py**: `WeightDataset` and `VoxelDataset` definitions which are `torch.Dataset` descendants. Former one is related to our HyperDiffusion method, while the latter one is for Voxel baseline.
+- **hd_utils.py**: Many utility methods ranging from rendering to flattening MLP weights.
+
+**Evaluation**
+
+- **torchmetrics_fid.py**: Modified torchmetrics fid implementation to calculate 3D-FID.
+- **evaluation_metrics_3d.py**: Methods to calculate MMD, COV and 1-NN from [DPC](https://github.com/luost26/diffusion-point-cloud). Both for 3D and 4D.
+
+**Entry Point**
+- **hyperdiffusion_env.yaml**: Conda environment file (see [Get Started](#get-started) section).
+- **main.py**: Entry point of our codebase.
+
+
+**Models**
+ 
+- **mlp_models.py**: Definition of ReLU MLPs with positional encoding.
+- **transformer.py**: GPT definition from [G.pt paper](https://github.com/wpeebles/G.pt).
+- **embedder.py**: Positional encoding definition.
+- **hyperdiffusion.py**: Definition of our method, it includes training, testing and validation logics in the form of a Pytorch Lightning module.
+
 ## Training Plots
 
 We share training plots for better reproducibility. Links take you to Weights & Biases reports.
 
 [Plane](https://api.wandb.ai/links/ziyaer/9korb518) | [Car](https://api.wandb.ai/links/ziyaer2/s528ygbt) | [Chair](https://api.wandb.ai/links/ziyaer2/y9pbdzwh) | [4D Animals](https://api.wandb.ai/links/ziyaer2/2xzc3fcn)
 
-## Dependencies
-
-* Python 3.7
-* PyTorch 1.13.0
-* CUDA 11.7
-* Weights & Biases (We heavily rely on it for visualization and monitoring)
-
-For full list please see [hyperdiffusion_env.yaml file](/hyperdiffusion_env.yaml)
-
-## Acknowledgment
+## Acknowledgments
 
 We mainly used codebases of [SIREN](https://github.com/vsitzmann/siren), [G.pt](https://github.com/wpeebles/G.pt) papers to build our repository. We also referred to [DPC](https://github.com/luost26/diffusion-point-cloud) for codes like evaluation metrics. We used [OpenAI Guided Diffusion](https://github.com/openai/guided-diffusion) as our diffusion backbone. [LDM](https://github.com/CompVis/latent-diffusion) codebase was useful for us to implement our voxel baseline.
 

@@ -21,13 +21,13 @@ mode: train
 mlps_folder_train: ./mlp_weights/3d_128_plane_multires_4_manifoldplus_slower_no_clipgrad
 model_resume_path:
 sampling: ddim
-val_fid_calculation_period: 1
+val_fid_calculation_period: 15
 lr: 0.0002
 batch_size: 32
 accumulate_grad_batches: 1
 val:
   num_points: 2048
-  num_samples: 10
+  num_samples: 60
 mlp_config:
   params:
     model_type: mlp_3d
