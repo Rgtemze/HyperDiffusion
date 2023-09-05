@@ -1,6 +1,9 @@
 name: Conda Install Test
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'hyperdiffusion_env.yaml'
 
 jobs:
   build-linux:
