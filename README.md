@@ -28,6 +28,7 @@ There are three main folders there:
 - **Point Clouds (2048)** has the set of 2048 points sampled from meshes to be used for metric calculation and baseline training.  
 
 ## Get Started
+![workflow badge](https://github.com/Rgtemze/HyperDiffusion/actions/workflows/conda_install_test.yml/badge.svg)
 
 We have environment file that you can create a conda environment from. Simply run,
 
@@ -38,9 +39,9 @@ conda activate hyper-diffusion
 
 _We specify our runtime parameters using .yaml files which are inside configs folder. There are different yaml files for each category and task._
 
-Then, download **MLP Weights** from [our Drive](#data) and put it into **mlp_weights** folder. Config files assume that weights are in that folder.
+Then, download **MLP Weights** from [our Drive](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing) and put it into **mlp_weights** folder. Config files assume that weights are in that folder.
 
-For 3D, download **Point Clouds (2048)** folder from [Drive](#data) and save its content to **data** folder. Eventually, **data** folder should look like this:
+For 3D, download **Point Clouds (2048)** folder from [Drive](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing) and save its content to **data** folder. Eventually, **data** folder should look like this:
 ```
 data
 |-- 02691156
@@ -53,7 +54,7 @@ data
 ```
 _Note: Category id to name conversion is as follows: 02691156 -> airplane, 02958343 -> car, 03001627 -> chair_
 ### Evaluation
-Download **Checkpoints** folder from [Drive section](#data). Assign the path of that checkpoint to the `best_model_save_path` parameter.
+Download **Checkpoints** folder from [Drive](https://drive.google.com/drive/folders/1CuNVa92jcKlGBiHEuCQK2-juAB6Q6QPx?usp=sharing). Assign the path of that checkpoint to the `best_model_save_path` parameter.
 
 to start evaluating, airplane category:
 ```commandline
@@ -67,9 +68,9 @@ python main.py --config-name=train_car mode=test best_model_save_path=<path/to/c
 ```commandline
 python main.py --config-name=train_chair mode=test best_model_save_path=<path/to/checkpoint> test_sample_mult=2 dedup=True
 ```
-(_checkpoints coming soon_) 4d animals category:
+(_checkpoints coming soon_) 4D animals category:
 ```commandline
-python main.py --config-name=train_4d_animals --mode=test best_model_save_path=<path/to/checkpoint>
+python main.py --config-name=train_4d_animals mode=test best_model_save_path=<path/to/checkpoint>
 ```
 ### Training
 To start training, airplane category:
@@ -84,7 +85,7 @@ python main.py --config-name=train_car
 ```commandline
 python main.py --config-name=train_chair
 ```
-(_MLP weights coming soon_) 4d animals category:
+(_MLP weights coming soon_) 4D animals category:
 ```commandline
 python main.py --config-name=train_4d_animals
 ```
@@ -96,11 +97,12 @@ them from terminal. For instance, to change the number of epochs:
 python main.py --config-name=train_plane epochs=1
 ```
 ### Overfitting
-We already provide overfitted shapes but if you want to do it yourself. Make sure that you put downloaded [ShapeNet](https://shapenet.org/) shapes into **data** folder. Then, you can run the following:
+We already provide overfitted shapes but if you want to do it yourself. Make sure that you put downloaded [ShapeNet](https://shapenet.org/) shapes (we applied [ManifoldPlus](https://github.com/hjwdzh/ManifoldPlus) pre-processing) into **data** folder.
+After that, we first create point clouds and then start overfitting on those point clouds; following lines do exactly that:
 ```commandline
+python siren/experiment_scripts/train_sdf.py --config-name=overfit_plane strategy=save_pc
 python siren/experiment_scripts/train_sdf.py --config-name=overfit_plane
 ```
-
 
 ## Code Map
 ### Directories

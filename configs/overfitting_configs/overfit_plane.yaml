@@ -3,7 +3,7 @@ output_type: "occ" # or sdf or occ
 in_out: True
 augment_on_the_fly: False
 mesh_jitter: False
-dataset_folder: "../DiffusionDeneme/data/02691156"
+dataset_folder: "./data/02691156"
 wandb_dir: .
 batch_size: 2048
 lr: 1e-2
@@ -30,7 +30,7 @@ multi_process:
   enabled: False
   part_id: 0
   n_of_parts: 4
-  first_weights_name: occ_a14b262838529c2c81e1d9f6b27f1a92_jitter_0_model_final.pth
+  first_weights_name:
   ignore_first: False
 n_points: 100000
 is_meta: True

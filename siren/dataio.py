@@ -532,48 +532,12 @@ class PointCloud(Dataset):
                     [inside_surface_values < thresh, inside_surface_values >= thresh],
                     [0, 1],
                 )
-                # occupancies = check_mesh_contains(obj, points).astype(np.float32)[..., None]
                 occupancies = occupancies_winding[..., None]
                 print(points.shape, occupancies.shape, occupancies.sum())
                 point_cloud = points
                 point_cloud = np.hstack((point_cloud, occupancies))
                 print(point_cloud.shape, points.shape, occupancies.shape)
-                # point_cloud = points_surface
-                # vertices = obj.vertices
-                # print(vertices.mean(axis=0, keepdims=True))
-                # vertices -= np.mean(vertices, axis=0, keepdims=True)
-                # v_max = np.amax(vertices)
-                # v_min = np.amin(vertices)
-                # print(vertices.mean(axis=0, keepdims=True), v_min, v_max)
-                # vertices *= 0.95 / (max(abs(v_min), abs(v_max)))
-                # # vertices -= 0.5
-                # # vertices *= 2.
-                # v_max = np.amax(vertices)
-                # v_min = np.amin(vertices)
-                # print(vertices.mean(axis=0, keepdims=True), v_min, v_max)
 
-                # obj.vertices = vertices
-                # self.vertices = vertices
-
-                # self.faces = obj.faces
-                # coords, faces = obj.sample(n_points, return_index=True)
-                # normals = np.array(obj.face_normals[faces])
-
-                # if self.output_type == "occ" and cfg.in_out:
-                #     in_surface_points = 10 * n_points
-                #     inside_surface_coords = np.random.uniform(vertices.min(axis=0), vertices.max(axis=0), size=(in_surface_points, 3))
-                #     inside_surface_values = igl.fast_winding_number_for_meshes(vertices, self.faces, inside_surface_coords)
-                #     thresh = 0.5
-                #     inside_surface_values = np.piecewise(inside_surface_values, [inside_surface_values < thresh, inside_surface_values >= thresh], [0, 1])[:, None]
-                #     inside_surface_coords = inside_surface_coords[inside_surface_values[:, 0] > 0.5, ...]
-                #     print(len(inside_surface_coords))
-
-                #     coords = np.vstack((coords, inside_surface_coords))
-                #     normals = np.vstack((normals, np.zeros_like(inside_surface_coords)))
-                # point_cloud = np.array(coords)
-
-                # point_cloud = np.hstack((point_cloud, normals))
-                # print(point_cloud.shape, coords.shape, normals.shape)
         else:
             point_cloud = np.genfromtxt(path)
         print("Finished loading point cloud")
@@ -606,7 +570,6 @@ class PointCloud(Dataset):
 
             self.coords = []
             self.occupancies = []
-            # self.total_time = min(nf, self.total_time)
             vert_datas = []
             v_min, v_max = float("inf"), float("-inf")
             for t in np.linspace(0, nf, self.total_time, dtype=int, endpoint=False):
@@ -629,8 +592,6 @@ class PointCloud(Dataset):
                 coords += 0.01 * np.random.randn(len(coords), 3)
                 normals = np.array(obj.face_normals[faces])
 
-                # inside_surface_coords = np.random.uniform(obj.vertices.min(axis=0), obj.vertices.max(axis=0),
-                #                                           size=(in_surface_points, 3))
                 uniform_coords = np.random.uniform(
                     -0.5, 0.5, size=(n_points_uniform, 3)
                 )
@@ -651,15 +612,6 @@ class PointCloud(Dataset):
                     occupancies.shape,
                 )
                 print("Occupied ratio", (occupancies > 0.5).sum() / len(occupancies))
-                # inside_surface_coords = inside_surface_coords[inside_surface_values[:, 0] > 0.5, ...]
-                # occupancies = check_mesh_contains(obj, coords).astype(np.float32)
-                # inside_surface_coords = coords[occupancies > 0.5]
-                # self.off_surface_coords = coords[occupancies < 0.5]
-
-                # print(inside_surface_coords.shape)
-                # coords = np.vstack((inside_surface_coords))
-                # normals = np.vstackoff_surface_coords((np.zeros_like(inside_surface_coords)))
-                # assert len(coords) == len(normals)
                 self.coords.append(coords)
                 self.occupancies.append(occupancies)
                 print(
@@ -667,22 +619,6 @@ class PointCloud(Dataset):
                     obj.vertices.min(),
                     obj.vertices.max(),
                 )
-
-                # points_uniform = np.random.uniform(-0.5, 0.5, size=(n_points_uniform, 3))
-                # points_surface = obj.sample(n_points_surface)
-                # points_surface += 0.01 * np.random.randn(n_points_surface, 3)
-                # points = np.concatenate([points_uniform, points_surface], axis=0)
-                # occupancies = check_mesh_contains(obj, points).astype(np.float32)
-                # print(points.shape, occupancies.sum(), occupancies.shape)
-                # pcd = o3d.geometry.PointCloud()
-                # pcd.points = o3d.utility.Vector3dVector(coords[occupancies > 0.5])
-                # o3d.visualization.draw_geometries([pcd])
-                # #
-                # occupancies = occupancies[..., None]
-                #
-                #
-                # self.coords.append(points)
-                # self.occupancies.append(occupancies)
 
             print(nf, nv, nt)
             self.coords = np.array(self.coords)
@@ -700,7 +636,6 @@ class PointCloud(Dataset):
             )
             self.coords = point_cloud[:, :3]
             self.occupancies = point_cloud[:, 3]
-            # self.occupancies = point_cloud[:, 3:]
 
         if cfg.shape_modify == "half":
             included_points = self.coords[:, 0] < 0
@@ -716,11 +651,6 @@ class PointCloud(Dataset):
 
     def __getitem__(self, idx):
         time = np.random.randint(0, self.total_time, size=self.total_time)
-        off_surface_samples = self.on_surface_points
-        off_surface_coords = np.random.uniform(-0.5, 0.5, size=(off_surface_samples, 3))
-
-        length = -1
-        idx_size = -1
         if self.move:
             length = self.coords[0].shape[0]
             idx_size = self.on_surface_points // self.total_time
@@ -731,18 +661,12 @@ class PointCloud(Dataset):
         if self.cfg.mlp_config.move:
             coords = self.coords[time]
             coords = coords[:, idx]
-            # off_surface_coords = np.random.uniform(-0.5, 0.5, size=coords.shape)
-            # print(coords.shape, off_surface_coords.shape)
-            # coords = np.hstack((coords, off_surface_coords))
             time_expanded = np.repeat(time, coords.shape[1])[..., None]
-            # print(time_expanded.shape, coords.shape)
 
             coords = coords.reshape(-1, coords.shape[-1])
-            # coords = np.vstack((coords, off_surface_coords))
             occs = self.occupancies[time]
             occs = occs[:, idx]
 
-            # occs = np.hstack((occs, np.zeros(off_surface_coords.shape[:2])))
 
             occs = occs.reshape(-1, 1)
 
@@ -752,67 +676,11 @@ class PointCloud(Dataset):
                 "sdf": torch.from_numpy(occs)
             }
         coords = self.coords[idx]
-        # coords = np.vstack((coords, off_surface_coords))
         occs = self.occupancies[idx, None]
-        # occs = np.vstack((occs, np.zeros((len(off_surface_coords), 1))))
-        #
-        # colors = np.piecewise(occs, [occs > 0, occs <= 0], [0.5, 0])
-        # colors = np.hstack((colors, np.zeros_like(occs), np.zeros_like(occs)))
-        #
-        # pcd = o3d.geometry.PointCloud()
-        # idx = np.random.randint(0, len(coords), 1024)
-        # pcd.points = o3d.utility.Vector3dVector(coords[idx])
-        # pcd.colors = o3d.utility.Vector3dVector(colors[idx])
-        # o3d.visualization.draw_geometries([pcd])
+
 
         return {"coords": torch.from_numpy(coords).float()}, {
             "sdf": torch.from_numpy(occs)
-        }
-        # idx = np.random.randint(self.coords.shape[0], size=self.on_surface_points)
-        # return {'coords': torch.from_numpy(self.coords[idx]).float()}, {'sdf': torch.from_numpy(self.occupancies[idx, None])}
-
-        time = np.random.randint(0, self.total_time)
-
-        point_cloud_size = (
-            self.coords.shape[0] if not self.move else self.coords[time].shape[0]
-        )
-        off_surface_samples = self.on_surface_points
-
-        # Random coords
-        rand_idcs = np.random.choice(point_cloud_size, size=self.on_surface_points)
-
-        new_coords = self.coords[time] if self.move else self.coords
-        on_surface_coords = new_coords[rand_idcs, :]
-        on_surface_normals = (self.normals[time] if self.move else self.normals)[
-            rand_idcs, :
-        ]
-
-        off_surface_coords = np.random.uniform(-1, 1, size=(off_surface_samples, 3))
-        off_surface_normals = np.ones((len(off_surface_coords), 3)) * -1
-
-        total_samples = self.on_surface_points + len(
-            off_surface_normals
-        )  # + len(in_surface_normals)
-
-        sdf = (
-            np.zeros((total_samples, 1))
-            if self.output_type == "sdf"
-            else np.ones((total_samples, 1))
-        )  # on-surface = sdf:0 occ:1
-        sdf[self.on_surface_points :, :] = (
-            -1 if self.output_type == "sdf" or self.out_act == "tanh" else 0
-        )  # off-surface = sdf:-1 => occ:0
-        coords = np.concatenate(
-            (on_surface_coords, off_surface_coords), axis=0
-        )  # , in_surface_coords
-
-        if self.move:
-            coords = np.hstack((coords, np.ones((coords.shape[0], 1)) * time))
-        normals = np.concatenate((on_surface_normals, off_surface_normals), axis=0)
-
-        return {"coords": torch.from_numpy(coords).float()}, {
-            "sdf": torch.from_numpy(sdf).float(),
-            "normals": torch.from_numpy(normals).float(),
         }
 
 
