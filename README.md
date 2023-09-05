@@ -1,5 +1,4 @@
 # HyperDiffusion
-![workflow badge](https://github.com/Rgtemze/HyperDiffusion/actions/workflows/conda_install_test.yml/badge.svg)
 [![arXiv](https://img.shields.io/badge/arXiv-2303.17015-b31b1b.svg)](https://arxiv.org/abs/2303.17015)
 
 Official code repository of "HyperDiffusion: Generating Implicit Neural Fields with Weight-Space Diffusion" @ ICCV 2023
@@ -16,10 +15,12 @@ I'll release rest of the weights/checkpoints after post-refactor tests are compl
 
 ## Dependencies
 
+* Tested on Ubuntu 20.04
 * Python 3.7
 * PyTorch 1.13.0
 * CUDA 11.7
 * Weights & Biases (We heavily rely on it for visualization and monitoring)
+
 
 For full list please see [hyperdiffusion_env.yaml file](/hyperdiffusion_env.yaml)
 
@@ -31,7 +32,7 @@ There are three main folders there:
 - **Point Clouds (2048)** has the set of 2048 points sampled from meshes to be used for metric calculation and baseline training.  
 
 ## Get Started
-We have environment file that you can create a conda environment from. Simply run,
+We have a .yaml file that you can create a conda environment from. Simply run,
 
 ```commandline
 conda env create --file hyperdiffusion_env.yaml
@@ -145,13 +146,13 @@ python siren/experiment_scripts/train_sdf.py --config-name=overfit_plane
 
 ## Training Plots
 
-We share training plots for better reproducibility. Links take you to Weights & Biases reports.
+We share training plots for better reproducibility. Links take you to Weights & Biases reports. (_Note: Some links sometimes don't work for unknown reasons_)
 
 [Plane](https://api.wandb.ai/links/ziyaer/9korb518) | [Car](https://api.wandb.ai/links/ziyaer2/s528ygbt) | [Chair](https://api.wandb.ai/links/ziyaer2/y9pbdzwh) | [4D Animals](https://api.wandb.ai/links/ziyaer2/2xzc3fcn)
 
 ## Acknowledgments
 
-We mainly used codebases of [SIREN](https://github.com/vsitzmann/siren), [G.pt](https://github.com/wpeebles/G.pt) papers to build our repository. We also referred to [DPC](https://github.com/luost26/diffusion-point-cloud) for codes like evaluation metrics. We used [OpenAI Guided Diffusion](https://github.com/openai/guided-diffusion) as our diffusion backbone. [LDM](https://github.com/CompVis/latent-diffusion) codebase was useful for us to implement our voxel baseline.
+We mainly used codebases of [SIREN](https://github.com/vsitzmann/siren) and [G.pt](https://github.com/wpeebles/G.pt) papers to build our repository. We also referred to [DPC](https://github.com/luost26/diffusion-point-cloud) for codes like evaluation metrics. We used [OpenAI Guided Diffusion](https://github.com/openai/guided-diffusion) as our diffusion backbone. [LDM](https://github.com/CompVis/latent-diffusion) codebase was useful for us to implement our voxel baseline.
 
 ## Citation
 If you find our work useful, please cite using the following BibTex entry:
