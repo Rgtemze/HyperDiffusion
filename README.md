@@ -99,7 +99,7 @@ them from terminal. For instance, to change the number of epochs:
 python main.py --config-name=train_plane epochs=1
 ```
 ### Overfitting
-We already provide overfitted shapes but if you want to do it yourself. Make sure that you put downloaded [ShapeNet](https://shapenet.org/) shapes (we applied [ManifoldPlus](https://github.com/hjwdzh/ManifoldPlus) pre-processing) into **data** folder.
+We already provide overfitted shapes but if you want to do it yourself make sure that you put downloaded [ShapeNet](https://shapenet.org/) shapes (we applied [ManifoldPlus](https://github.com/hjwdzh/ManifoldPlus) pre-processing) into **data** folder.
 After that, we first create point clouds and then start overfitting on those point clouds; following lines do exactly that:
 ```commandline
 python siren/experiment_scripts/train_sdf.py --config-name=overfit_plane strategy=save_pc
