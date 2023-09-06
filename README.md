@@ -8,7 +8,7 @@ Official code repository of "HyperDiffusion: Generating Implicit Neural Fields w
 
 ## News
 I'll release rest of the weights/checkpoints after post-refactor tests are complete. You can see here for what's uploaded.  
-- [XX.09.2023] Code and airplane weights/checkpoints released
+- [06.09.2023] Code and airplane weights/checkpoints released
 ## Method Overview
 
 ![Overview image](/static/overview.svg)
